@@ -32,9 +32,15 @@
             <a href="/sensors" class="flex items-center gap-4 p-3 opacity-60 hover:opacity-100 transition">
                 <span class="material-symbols-rounded">sensors</span> Sensors
             </a>
+             <a href="/grafik" class="flex items-center gap-4 p-3 opacity-60 hover:opacity-100 transition">
+        <span class="material-symbols-rounded">show_chart</span> Grafik & Riwayat
+    </a>
             <a href="/logs" class="flex items-center gap-4 bg-white/10 p-3 rounded-2xl transition">
                 <span class="material-symbols-rounded">history</span> Log Activity
             </a>
+             <a href="/settings" class="flex items-center gap-4 p-3 opacity-60 hover:opacity-100 transition">
+        <span class="material-symbols-rounded">settings</span> Pengaturan
+    </a>
         </nav>
     </aside>
 
