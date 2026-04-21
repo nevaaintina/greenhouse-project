@@ -22,7 +22,7 @@
     </div>
 
     <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-forest text-white flex flex-col p-6 shadow-2xl transition-transform duration-300 -translate-x-full md:translate-x-0 md:static md:flex h-screen">
-        <div class="flex items-center gap-3 mb-8 px-2">
+         <div class="flex items-center gap-3 mb-8 px-2">
     <span class="material-symbols-rounded text-emerald-400 text-3xl">potted_plant</span>
     <h1 class="font-semibold text-lg uppercase tracking-[0.1em] text-white/90">SmartGrow</h1>
 </div>
@@ -68,7 +68,7 @@
             </div>
         </div>
     </aside>
-
+    
     <div id="overlay" class="fixed inset-0 bg-black/50 z-30 hidden transition-opacity"></div>
 
     <main class="flex-1 overflow-y-auto p-5 md:p-10 relative">
