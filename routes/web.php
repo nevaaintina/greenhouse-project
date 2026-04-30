@@ -1,22 +1,73 @@
 <?php
+
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\LogController;
+use App\Http\Controllers\SensorController;
+use App\Http\Controllers\SettingController;
 
-Route::get('/', function () { return view('login'); });
-Route::get('/dashboard', function () { return view('dashboard'); });
-Route::get('/sensors', function () { return view('sensors'); });
-Route::get('/logs', function () { return view('logs'); });
-Route::get('/profile', function () { return view('profile'); });
-Route::get('/grafik', function () { return view('grafik'); })->name('grafik');
-Route::get('/settings', function () { return view('settings'); })->name('settings');
-Route::get('/profile', function () { 
-    return view('profile'); 
-})->name('profile');
+/*
+|--------------------------------------------------------------------------
+| AUTH ROUTES
+|--------------------------------------------------------------------------
+*/
 
-Route::get('/profile/edit', function () { 
-    return view('edit-profile'); 
-})->name('profile.edit');
+// Halaman login
+Route::get('/', [AuthController::class, 'showLogin'])->name('login');
 
-Route::post('/profile/update', function () {
-    // Sementara redirect balik dulu buat demo
-    return redirect()->route('profile')->with('success', 'Profil berhasil diperbarui!');
-})->name('profile.update');
+// Proses login
+Route::post('/login', [AuthController::class, 'login'])->name('login.process');
+
+// Logout
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+
+/*
+|--------------------------------------------------------------------------
+| PROTECTED ROUTES (WAJIB LOGIN)
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth'])->group(function () {
+
+    // =====================
+    // DASHBOARD
+    // =====================
+    Route::get('/dashboard', [SensorController::class, 'dashboard']);
+Route::get('/sensors', [SensorController::class, 'index']);
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // =====================
+    // SENSOR
+    // =====================
+
+    // =====================
+    // ANALYTICS / GRAFIK
+    // =====================
+    Route::get('/grafik', [AnalyticsController::class, 'index'])->name('grafik');
+
+    // =====================
+    // LOGS (PAKE DATABASE)
+    // =====================
+    Route::get('/logs', [LogController::class, 'index'])->name('logs');
+
+    // =====================
+    // SETTINGS
+    // =====================
+Route::get('/settings', [SettingController::class, 'index']);
+Route::post('/settings/update', [SettingController::class, 'update']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | PROFILE
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
+    Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::post('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
+
+});
