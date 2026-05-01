@@ -65,7 +65,7 @@
             <a href="/sensors" class="flex items-center gap-4 p-3 {{ Request::is('sensors*') ? 'bg-white/10 font-semibold' : 'text-white/80' }} rounded-xl transition">
                 <span class="material-symbols-rounded">sensors</span> Sensors
             </a>
-            <!-- GRAFIK (Ini yang tadi Not Found) -->
+            <!-- GRAFIK -->
             <a href="/grafik" class="flex items-center gap-4 p-3 {{ Request::is('grafik*') ? 'bg-white/10 font-semibold' : 'text-white/80' }} rounded-xl transition">
                 <span class="material-symbols-rounded">show_chart</span> Grafik & Riwayat
             </a>
@@ -92,6 +92,24 @@
         <p class="text-sm opacity-80 mt-2 italic">
             "Tanamanmu terlihat sangat aktif berfotosintesis siang ini. Pastikan ventilasi terbuka untuk sirkulasi CO2 yang optimal!"
         </p>
+    </div>
+
+    <!-- FILTER SECTION -->
+    <div class="bg-white p-6 rounded-3xl shadow-sm border mb-8 flex flex-wrap items-center gap-4">
+        <div class="flex items-center gap-2">
+            <span class="material-symbols-rounded text-forest">calendar_month</span>
+            <h4 class="text-sm font-bold text-forest uppercase">Filter Data</h4>
+        </div>
+        <div class="flex flex-wrap gap-3 flex-1 justify-end">
+            <input type="date" class="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-forest focus:outline-none focus:ring-2 focus:ring-forest/20">
+            <select class="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-forest focus:outline-none focus:ring-2 focus:ring-forest/20">
+                <option>Harian</option>
+                <option>Mingguan</option>
+                <option>Bulanan</option>
+                <option>Tahunan</option>
+            </select>
+            <button class="bg-forest text-white px-6 py-2 rounded-xl text-xs font-bold hover:scale-95 transition">Terapkan Filter</button>
+        </div>
     </div>
 
     <!-- 4 GRAPHS GRID -->
@@ -152,49 +170,45 @@ function toggleSidebar() {
     if (sidebar) sidebar.classList.toggle('hidden');
 }
 
-const labels = ['08:00','10:00','12:00','14:00','16:00','18:00','20:00'];
+// Labels interval 10 menit
+const labels = ['12:00','12:10','12:20','12:30','12:40','12:50','13:00'];
 const commonOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: { legend: { display: false } },
-    scales: { y: { beginAtZero: true } }
+    scales: { 
+        y: { beginAtZero: true },
+        x: { grid: { display: false } }
+    }
 };
 
 // 1. Soil Chart
 new Chart(document.getElementById('soilChart'), {
     type: 'line',
-    data: { labels: labels, datasets: [{ data: [70,65,60,58,85,80,75], borderColor: '#3b82f6', tension: 0.4, fill: true, backgroundColor: 'rgba(59, 130, 246, 0.1)' }] },
+    data: { labels: labels, datasets: [{ data: [60,62,61,58,59,60,61], borderColor: '#3b82f6', tension: 0.4, fill: true, backgroundColor: 'rgba(59, 130, 246, 0.1)' }] },
     options: commonOptions
 });
 
 // 2. Temp Chart
 new Chart(document.getElementById('tempChart'), {
     type: 'line',
-    data: { labels: labels, datasets: [{ data: [24,27,31,32,28,26,25], borderColor: '#f97316', tension: 0.4 }] },
+    data: { labels: labels, datasets: [{ data: [31,31.2,31.5,31.1,31.3,31.4,31.2], borderColor: '#f97316', tension: 0.4 }] },
     options: commonOptions
 });
 
 // 3. Hum Chart
 new Chart(document.getElementById('humChart'), {
     type: 'line',
-    data: { labels: labels, datasets: [{ data: [55,52,48,45,55,54,53], borderColor: '#10b981', tension: 0.4 }] },
+    data: { labels: labels, datasets: [{ data: [45,46,45,44,45,47,46], borderColor: '#10b981', tension: 0.4 }] },
     options: commonOptions
 });
 
 // 4. Light Chart
 new Chart(document.getElementById('lightChart'), {
     type: 'line',
-    data: { labels: labels, datasets: [{ data: [300,450,800,950,400,200,100], borderColor: '#fbbf24', tension: 0.4, fill: true, backgroundColor: 'rgba(251, 191, 36, 0.1)' }] },
+    data: { labels: labels, datasets: [{ data: [800,810,805,790,820,815,810], borderColor: '#fbbf24', tension: 0.4, fill: true, backgroundColor: 'rgba(251, 191, 36, 0.1)' }] },
     options: commonOptions
 });
-</script>
-<script>
-    function toggleSidebar() {
-        const sidebar = document.getElementById('mobile-sidebar');
-        if (sidebar) {
-            sidebar.classList.toggle('hidden');
-        }
-    }
 </script>
 
 @endsection
