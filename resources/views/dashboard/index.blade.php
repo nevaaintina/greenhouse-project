@@ -45,6 +45,30 @@
     </a>
 </header>
 
+<!-- NOTIFIKASI KONDISI (TAMBAHAN) -->
+@if($soil < 30 || $temp > 30)
+<div class="mb-6 flex items-center justify-between bg-red-50 border-l-4 border-red-500 p-4 rounded-r-2xl shadow-sm animate-bounce-slow">
+    <div class="flex items-center gap-3">
+        <div class="bg-red-500 p-2 rounded-full text-white">
+            <span class="material-symbols-rounded text-sm">warning</span>
+        </div>
+        <div>
+            <h5 class="text-xs font-black text-red-800 uppercase tracking-tighter">System Alert</h5>
+            <p class="text-[11px] text-red-600 font-medium">
+                @if($soil < 30) 
+                    Tanah terlalu kering ({{ $soil }}%). Pompa membutuhkan perhatian! 
+                @elseif($temp > 30) 
+                    Suhu berlebih ({{ $temp }}°C). Aktifkan kipas segera! 
+                @endif
+            </p>
+        </div>
+    </div>
+    <button class="text-red-400 hover:text-red-600" onclick="this.parentElement.remove()">
+        <span class="material-symbols-rounded">close</span>
+    </button>
+</div>
+@endif
+
 <!-- MOBILE SIDEBAR OVERLAY -->
 <div id="mobile-sidebar" class="fixed inset-0 bg-black/50 z-50 hidden md:hidden transition-opacity">
     <div class="bg-forest w-72 h-full p-6 relative shadow-2xl text-white">
@@ -107,11 +131,8 @@
         <div class="relative w-28 h-28 flex items-center justify-center rounded-full bg-gray-50 border-4 border-gray-100">
             <span class="material-symbols-rounded absolute text-6xl text-orange-100 opacity-70">device_thermostat</span>
             
-            <!-- Posisi Angka & Garis Merah di Samping -->
             <div class="flex items-center gap-2 z-10">
-                <!-- Garis Merah (Hanya mencolok saat panas > 30°C) -->
                 <div class="w-1 h-8 rounded-full transition-all duration-500 {{ $temp > 30 ? 'bg-red-500 animate-pulse opacity-100' : 'bg-gray-200 opacity-30' }}"></div>
-                
                 <div class="text-center">
                     <h3 class="text-3xl font-black text-gray-800 leading-none">{{ $temp }}<span class="text-sm text-gray-400">°C</span></h3>
                 </div>
@@ -126,10 +147,8 @@
     <div class="bg-white/80 p-5 rounded-3xl shadow flex flex-col items-center relative group border border-transparent hover:border-emerald-200 transition-all">
         <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Humidity</p>
         <div class="relative w-28 h-28 flex items-center justify-center rounded-full bg-gray-50 border-4 border-gray-100 overflow-hidden">
-            <!-- Glow Effect -->
             <div class="absolute w-20 h-20 bg-emerald-400/20 rounded-full blur-xl animate-pulse"></div>
             
-            <!-- Animated Mist Icon -->
             <div class="absolute inset-0 flex items-center justify-center animate-float">
                 <span class="material-symbols-rounded text-6xl text-emerald-100 opacity-80">air</span>
             </div>
@@ -211,8 +230,22 @@
             </div>
         </div>
     </div>
-    <div class="flex flex-col items-center justify-center">
+    <div class="flex flex-col items-center justify-center bg-white p-6 rounded-3xl shadow">
         <button class="w-full bg-forest text-white p-5 rounded-2xl font-bold hover:scale-95 transition shadow-lg z-10">RESET NODE</button>
+        
+        <!-- TOMBOL MODE OPERASIONAL (TAMBAHAN) -->
+        <div class="mt-4 w-full space-y-2">
+            <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Operation Mode</p>
+            <div class="flex gap-2">
+                <button class="flex-1 bg-white border-2 border-forest text-forest py-2 rounded-xl text-[10px] font-bold hover:bg-forest hover:text-white transition shadow-sm">
+                    MANUAL
+                </button>
+                <button class="flex-1 bg-forest text-white py-2 rounded-xl text-[10px] font-bold border-2 border-forest hover:scale-95 transition shadow-md flex items-center justify-center gap-1">
+                    <span class="w-1.5 h-1.5 bg-green-400 rounded-full animate-ping"></span> OTOMATIS
+                </button>
+            </div>
+        </div>
+
         <div class="mt-4 opacity-30 animate-bounce-slow">
              <span class="material-symbols-rounded text-6xl text-forest">potted_plant</span>
         </div>
@@ -264,7 +297,6 @@
 <!-- SCRIPTS -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Logic Heatmap Style Chart
     const ctx = document.getElementById('soilHeatmapChart').getContext('2d');
     new Chart(ctx, {
         type: 'bar',
@@ -275,7 +307,7 @@
                 data: [65, 75, 40, 85, 30, 55, 70],
                 backgroundColor: function(context) {
                     const val = context.dataset.data[context.dataIndex];
-                    return val < 45 ? '#f87171' : '#3b82f6'; // Merah jika < 45, Biru jika Ideal
+                    return val < 45 ? '#f87171' : '#3b82f6';
                 },
                 borderRadius: 12,
                 borderSkipped: false,
@@ -300,14 +332,12 @@
 </script>
 
 <style>
-/* Gelombang Air */
 @keyframes wave {
     0% { transform: translateX(0) rotate(0deg); }
     100% { transform: translateX(-50%) rotate(360deg); }
 }
 .animate-wave { animation: wave 4s linear infinite; }
 
-/* Animasi Bawaan */
 @keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes bounceSlow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 .animate-spin-slow { animation: spinSlow 3s linear infinite; }
