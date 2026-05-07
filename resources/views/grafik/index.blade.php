@@ -11,21 +11,27 @@
 .animate-float {
     animation: float 3s ease-in-out infinite;
 }
+
+/* 🔥 efek halus grafik */
+canvas {
+    transition: all 0.3s ease;
+}
+canvas:hover {
+    transform: scale(1.02);
+}
 </style>
 
 <main class="max-w-7xl mx-auto p-5 md:p-8 text-slate-700">
 
-    <!-- HEADER -->
 <header class="flex justify-between items-center mb-10">
     <div class="flex items-center gap-3">
-        <!-- TOMBOL HAMBURGER -->
         <button class="block md:hidden text-forest p-1 focus:outline-none" onclick="toggleSidebar()">
             <span class="material-symbols-rounded text-3xl">menu</span>
         </button>
 
         <div>
             <h2 class="text-xl md:text-2xl font-bold text-forest uppercase">
-                {{ Request::is('grafik*') ? 'Data Analytics' : (Request::is('dashboard*') ? 'Greenhouse Overview' : 'SmartGrow') }}
+                {{ Request::is('grafik*') ? 'Data Analytics' : 'Greenhouse Overview' }}
             </h2>
             <p class="text-xs text-gray-400 mt-1">
                 Last Update: {{ now()->format('d M Y H:i') }}
@@ -43,172 +49,164 @@
     </a>
 </header>
 
-<!-- MOBILE SIDEBAR OVERLAY -->
-<div id="mobile-sidebar" class="fixed inset-0 bg-black/50 z-50 hidden md:hidden transition-opacity">
-    <div class="bg-forest w-72 h-full p-6 relative shadow-2xl text-white">
-        <!-- TOMBOL X -->
-        <button class="absolute top-5 right-5 text-white/80 hover:text-white" onclick="toggleSidebar()">
-            <span class="material-symbols-rounded text-3xl">close</span>
+<!-- FILTER -->
+<form method="GET" action="/grafik">
+<div class="bg-white p-6 rounded-3xl shadow-sm border mb-2 flex flex-wrap items-center gap-4">
+    <div class="flex items-center gap-2">
+        <span class="material-symbols-rounded text-forest">calendar_month</span>
+        <h4 class="text-sm font-bold text-forest uppercase">Filter Data</h4>
+    </div>
+
+    <div class="flex flex-wrap gap-3 flex-1 justify-end">
+        <input type="date" name="date" value="{{ request('date') }}"
+            class="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-forest">
+
+        <select name="range"
+            class="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-forest">
+            <option value="daily" {{ request('range')=='daily' ? 'selected' : '' }}>Harian</option>
+            <option value="weekly" {{ request('range')=='weekly' ? 'selected' : '' }}>Mingguan</option>
+            <option value="monthly" {{ request('range')=='monthly' ? 'selected' : '' }}>Bulanan</option>
+        </select>
+
+        <button type="submit" class="bg-forest text-white px-6 py-2 rounded-xl text-xs font-bold">
+            Terapkan Filter
         </button>
-
-        <div class="flex items-center gap-3 mb-10 mt-4">
-            <span class="material-symbols-rounded text-4xl text-green-400">potted_plant</span>
-            <h1 class="text-xl font-bold tracking-widest uppercase">SmartGrow</h1>
-        </div>
-
-        <nav class="flex flex-col gap-2">
-            <!-- DASHBOARD -->
-            <a href="/dashboard" class="flex items-center gap-4 p-3 {{ Request::is('dashboard*') ? 'bg-white/10 font-semibold' : 'text-white/80' }} rounded-xl transition">
-                <span class="material-symbols-rounded">grid_view</span> Dashboard
-            </a>
-            <!-- SENSORS -->
-            <a href="/sensors" class="flex items-center gap-4 p-3 {{ Request::is('sensors*') ? 'bg-white/10 font-semibold' : 'text-white/80' }} rounded-xl transition">
-                <span class="material-symbols-rounded">sensors</span> Sensors
-            </a>
-            <!-- GRAFIK -->
-            <a href="/grafik" class="flex items-center gap-4 p-3 {{ Request::is('grafik*') ? 'bg-white/10 font-semibold' : 'text-white/80' }} rounded-xl transition">
-                <span class="material-symbols-rounded">show_chart</span> Grafik & Riwayat
-            </a>
-            <!-- LOGS -->
-            <a href="/logs" class="flex items-center gap-4 p-3 {{ Request::is('logs*') ? 'bg-white/10 font-semibold' : 'text-white/80' }} rounded-xl transition">
-                <span class="material-symbols-rounded">history</span> Log Activity
-            </a>
-            <!-- PROFILE -->
-            <a href="/profile" class="flex items-center gap-4 p-3 {{ Request::is('profile*') ? 'bg-white/10 font-semibold' : 'text-white/80' }} rounded-xl transition">
-                <span class="material-symbols-rounded">person</span> Profile
-            </a>
-            <!-- SETTINGS -->
-            <a href="/settings" class="flex items-center gap-4 p-3 {{ Request::is('settings*') ? 'bg-white/10 font-semibold' : 'text-white/80' }} rounded-xl transition">
-                <span class="material-symbols-rounded">settings</span> Pengaturan
-            </a>
-        </nav>
     </div>
 </div>
+</form>
 
-    <!-- INSIGHT -->
-    <div class="bg-gradient-to-br from-forest to-emerald-900 p-6 rounded-3xl text-white mb-8 animate-float">
-        <p class="text-xs uppercase opacity-60">Smart System Insight</p>
-        <h4 class="text-lg font-bold mt-1">Saran:</h4>
-        <p class="text-sm opacity-80 mt-2 italic">
-            "Tanamanmu terlihat sangat aktif berfotosintesis siang ini. Pastikan ventilasi terbuka untuk sirkulasi CO2 yang optimal!"
-        </p>
-    </div>
+@if(request('date'))
+<div class="mb-6 text-xs text-gray-400 px-1">
+    {{ $filterInfo }}
+</div>
+@endif
 
-    <!-- FILTER SECTION -->
-    <div class="bg-white p-6 rounded-3xl shadow-sm border mb-8 flex flex-wrap items-center gap-4">
-        <div class="flex items-center gap-2">
-            <span class="material-symbols-rounded text-forest">calendar_month</span>
-            <h4 class="text-sm font-bold text-forest uppercase">Filter Data</h4>
-        </div>
-        <div class="flex flex-wrap gap-3 flex-1 justify-end">
-            <input type="date" class="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-forest focus:outline-none focus:ring-2 focus:ring-forest/20">
-            <select class="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-forest focus:outline-none focus:ring-2 focus:ring-forest/20">
-                <option>Harian</option>
-                <option>Mingguan</option>
-                <option>Bulanan</option>
-                <option>Tahunan</option>
-            </select>
-            <button class="bg-forest text-white px-6 py-2 rounded-xl text-xs font-bold hover:scale-95 transition">Terapkan Filter</button>
-        </div>
-    </div>
+<!-- CHART -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    
+    <!-- SOIL -->
+    <section class="bg-white p-6 rounded-3xl shadow-sm border">
+        <h4 class="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1 mb-4">
+            <span class="material-symbols-rounded text-blue-500 text-xs">water_drop</span>
+            Soil Moisture (%)
+        </h4>
+        <div class="h-[250px]"><canvas id="soilChart"></canvas></div>
+    </section>
 
-    <!-- 4 GRAPHS GRID -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        <!-- SOIL MOISTURE CHART -->
-        <section class="bg-white p-6 rounded-3xl shadow-sm border">
-            <div class="flex justify-between items-center mb-4">
-                <h4 class="text-[10px] font-bold uppercase text-slate-400">Soil Moisture (%)</h4>
-                <span class="material-symbols-rounded text-blue-500">water_drop</span>
-            </div>
-            <div class="h-[250px]">
-                <canvas id="soilChart"></canvas>
-            </div>
-        </section>
+    <!-- TEMP -->
+    <section class="bg-white p-6 rounded-3xl shadow-sm border">
+        <h4 class="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1 mb-4">
+            <span class="material-symbols-rounded text-orange-500 text-xs">device_thermostat</span>
+            Temperature (°C)
+        </h4>
+        <div class="h-[250px]"><canvas id="tempChart"></canvas></div>
+    </section>
 
-        <!-- TEMPERATURE CHART -->
-        <section class="bg-white p-6 rounded-3xl shadow-sm border">
-            <div class="flex justify-between items-center mb-4">
-                <h4 class="text-[10px] font-bold uppercase text-slate-400">Temperature (°C)</h4>
-                <span class="material-symbols-rounded text-orange-500">device_thermostat</span>
-            </div>
-            <div class="h-[250px]">
-                <canvas id="tempChart"></canvas>
-            </div>
-        </section>
+    <!-- HUM -->
+    <section class="bg-white p-6 rounded-3xl shadow-sm border">
+        <h4 class="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1 mb-4">
+            <span class="material-symbols-rounded text-emerald-500 text-xs">air</span>
+            Humidity (%)
+        </h4>
+        <div class="h-[250px]"><canvas id="humChart"></canvas></div>
+    </section>
 
-        <!-- HUMIDITY CHART -->
-        <section class="bg-white p-6 rounded-3xl shadow-sm border">
-            <div class="flex justify-between items-center mb-4">
-                <h4 class="text-[10px] font-bold uppercase text-slate-400">Humidity (%)</h4>
-                <span class="material-symbols-rounded text-emerald-500">humidity_mid</span>
-            </div>
-            <div class="h-[250px]">
-                <canvas id="humChart"></canvas>
-            </div>
-        </section>
+    <!-- LIGHT -->
+    <section class="bg-white p-6 rounded-3xl shadow-sm border">
+        <h4 class="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1 mb-4">
+            <span class="material-symbols-rounded text-yellow-500 text-xs">wb_sunny</span>
+            Light Intensity (Lux)
+        </h4>
+        <div class="h-[250px]"><canvas id="lightChart"></canvas></div>
+    </section>
 
-        <!-- LIGHT INTENSITY CHART -->
-        <section class="bg-white p-6 rounded-3xl shadow-sm border">
-            <div class="flex justify-between items-center mb-4">
-                <h4 class="text-[10px] font-bold uppercase text-slate-400">Light Intensity (Lux)</h4>
-                <span class="material-symbols-rounded text-yellow-500">wb_sunny</span>
-            </div>
-            <div class="h-[250px]">
-                <canvas id="lightChart"></canvas>
-            </div>
-        </section>
-
-    </div>
+</div>
 
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-function toggleSidebar() {
-    const sidebar = document.getElementById('mobile-sidebar');
-    if (sidebar) sidebar.classList.toggle('hidden');
+
+const labels = @json($labels ?? []);
+const tempData = @json($temp ?? []);
+const soilData = @json($soil ?? []);
+const humData = @json($hum ?? []);
+const lightData = @json($light ?? []);
+
+function safeData(d){ return d?.length ? d : [0]; }
+function safeLabels(l){ return l?.length ? l : ['-']; }
+
+// 🔥 WARNA DINAMIS
+function getColor(type, value){
+    if(type==='soil'){
+        if(value<45) return '#ef4444';
+        if(value<=70) return '#3b82f6';
+        return '#9ca3af';
+    }
+    if(type==='temp'){
+        if(value>28) return '#ef4444';
+        if(value>=20) return '#22c55e';
+        return '#3b82f6';
+    }
+    if(type==='light'){
+        if(value<300) return '#facc15';
+        if(value<=800) return '#22c55e';
+        return '#f97316';
+    }
+    return '#10b981';
 }
 
-// Labels interval 10 menit
-const labels = ['12:00','12:10','12:20','12:30','12:40','12:50','13:00'];
-const commonOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: { 
-        y: { beginAtZero: true },
-        x: { grid: { display: false } }
-    }
-};
+const charts = {};
 
-// 1. Soil Chart
-new Chart(document.getElementById('soilChart'), {
-    type: 'line',
-    data: { labels: labels, datasets: [{ data: [60,62,61,58,59,60,61], borderColor: '#3b82f6', tension: 0.4, fill: true, backgroundColor: 'rgba(59, 130, 246, 0.1)' }] },
-    options: commonOptions
-});
+function chart(id, data, color, fill=false){
+    const ctx = document.getElementById(id);
+    if(!ctx) return;
 
-// 2. Temp Chart
-new Chart(document.getElementById('tempChart'), {
-    type: 'line',
-    data: { labels: labels, datasets: [{ data: [31,31.2,31.5,31.1,31.3,31.4,31.2], borderColor: '#f97316', tension: 0.4 }] },
-    options: commonOptions
-});
+    if(charts[id]) charts[id].destroy();
 
-// 3. Hum Chart
-new Chart(document.getElementById('humChart'), {
-    type: 'line',
-    data: { labels: labels, datasets: [{ data: [45,46,45,44,45,47,46], borderColor: '#10b981', tension: 0.4 }] },
-    options: commonOptions
-});
+    charts[id] = new Chart(ctx,{
+        type:'line',
+        data:{
+            labels: safeLabels(labels),
+            datasets:[{
+                data: safeData(data),
+                borderColor: color,
+                backgroundColor: fill ? color+'15' : 'transparent',
+                tension:0.5,
+                fill:fill,
+                pointRadius:5,
+                pointBackgroundColor:color,
+                pointBorderColor:'#fff',
+                borderWidth:3,
+                spanGaps:true
+            }]
+        },
+        options:{
+            responsive:true,
+            maintainAspectRatio:false,
+            plugins:{
+                legend:{display:false},
+                tooltip:{
+                    backgroundColor:'#1f2937',
+                    titleColor:'#fff',
+                    bodyColor:'#fff',
+                    padding:10,
+                    cornerRadius:10
+                }
+            },
+            scales:{
+                y:{beginAtZero:true,grid:{color:'#f1f5f9'}},
+                x:{grid:{display:false}}
+            }
+        }
+    });
+}
 
-// 4. Light Chart
-new Chart(document.getElementById('lightChart'), {
-    type: 'line',
-    data: { labels: labels, datasets: [{ data: [800,810,805,790,820,815,810], borderColor: '#fbbf24', tension: 0.4, fill: true, backgroundColor: 'rgba(251, 191, 36, 0.1)' }] },
-    options: commonOptions
-});
+// INIT
+chart('soilChart', soilData, getColor('soil', soilData.slice(-1)[0]), true);
+chart('tempChart', tempData, getColor('temp', tempData.slice(-1)[0]), true);
+chart('humChart', humData, '#10b981', true);
+chart('lightChart', lightData, getColor('light', lightData.slice(-1)[0]), true);
 </script>
 
 @endsection

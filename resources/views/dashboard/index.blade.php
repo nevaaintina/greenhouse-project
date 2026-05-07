@@ -3,18 +3,56 @@
 @section('content')
 
 @php
-    $map = $sensors->keyBy('type');
 
-    function getVal($map, $type, $default){
-        return optional(optional($map->get($type))->latestData)->value ?? $default;
-    }
+// =========================
+// AUTO STATUS (STANDAR)
+// =========================
 
-    $soil  = getVal($map, 'soil', 70);
-    $temp  = getVal($map, 'temperature', 26.5);
-    $hum   = getVal($map, 'humidity', 55);
-    $light = getVal($map, 'light', 450);
+// 🌱 SOIL
+if ($soil < 45) {
+    $soilStatus = 'Kering';
+    $pumpAuto = 'on';
+} elseif ($soil <= 70) {
+    $soilStatus = 'Ideal';
+    $pumpAuto = 'off';
+} else {
+    $soilStatus = 'Basah';
+    $pumpAuto = 'off';
+}
 
-    $dash = 220 - (220 * $soil / 100);
+// 🌡️ TEMP
+if ($temp > 28) {
+    $tempStatus = 'Overheat';
+    $fanAuto = 'on';
+} elseif ($temp >= 20) {
+    $tempStatus = 'Stable';
+    $fanAuto = 'off';
+} else {
+    $tempStatus = 'Cold';
+    $fanAuto = 'off';
+}
+
+// 💡 LIGHT
+if ($light < 300) {
+    $lightStatus = 'Low';
+    $lampAuto = 'on';
+} elseif ($light <= 800) {
+    $lightStatus = 'Good';
+    $lampAuto = 'off';
+} else {
+    $lightStatus = 'High';
+    $lampAuto = 'off';
+}
+
+// =========================
+// PRIORITAS (AUTO > DB)
+// =========================
+$actuators = [
+    'pump' => $pumpAuto,
+    'fan'  => $fanAuto,
+    'lamp' => $lampAuto
+];
+
 @endphp
 
 <!-- HEADER -->
@@ -121,7 +159,7 @@
         </div>
         <div class="mt-4 flex items-center gap-1.5">
             <span class="w-2 h-2 rounded-full {{ $soil < 30 ? 'bg-red-500 animate-pulse' : 'bg-blue-500' }}"></span>
-            <p class="text-[11px] font-bold text-gray-600 uppercase">{{ $soil < 30 ? 'Kering' : 'Ideal' }}</p>
+            <p class="text-[11px] font-bold text-gray-600 uppercase">{{ $soil < 45 ? 'Kering' : 'Ideal' }}</p>
         </div>
     </div>
 
@@ -139,7 +177,7 @@
             </div>
         </div>
         <span class="text-[10px] font-bold {{ $temp > 30 ? 'text-red-500 animate-pulse' : 'text-green-600' }} uppercase mt-4">
-            {{ $temp > 30 ? 'Overheat' : 'Stable' }}
+            {{ $temp > 28 ? 'Overheat' : 'Stable' }}
         </span>
     </div>
 
@@ -215,18 +253,30 @@
                 </g>
             </svg>
         </div>
+
         <div>
             <h4 class="font-bold text-forest text-lg">Live Ecosystem</h4>
+
             <div class="flex flex-wrap gap-3 mt-3">
+
+                <!-- 🌊 POMPA -->
                 <span class="bg-green-100 text-green-700 px-3 py-1 rounded text-[10px] font-bold animate-pulse flex items-center gap-1">
-                    <span class="material-symbols-rounded text-sm">water_drop</span> Pompa: Aktif
+                    <span class="material-symbols-rounded text-sm">water_drop</span> 
+                    Pompa: {{ ($actuators['pump'] ?? 'off') == 'on' ? 'ON' : 'OFF' }}
                 </span>
+
+                <!-- 💡 LAMPU -->
                 <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded text-[10px] font-bold animate-pulse flex items-center gap-1">
-                    <span class="material-symbols-rounded text-sm">lightbulb</span> Lampu: ON
+                    <span class="material-symbols-rounded text-sm">lightbulb</span> 
+                    Lampu: {{ ($actuators['lamp'] ?? 'off') == 'on' ? 'ON' : 'OFF' }}
                 </span>
+
+                <!-- 🌬️ KIPAS -->
                 <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold flex items-center gap-1">
-                    <span class="material-symbols-rounded text-sm animate-spin-slow">mode_fan</span> Kipas: On
+                    <span class="material-symbols-rounded text-sm animate-spin-slow">mode_fan</span> 
+                    Kipas: {{ ($actuators['fan'] ?? 'off') == 'on' ? 'ON' : 'OFF' }}
                 </span>
+
             </div>
         </div>
     </div>
@@ -256,27 +306,85 @@
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <div class="bg-white p-6 rounded-3xl shadow flex flex-col gap-6">
         <h4 class="text-xs font-bold text-gray-400 uppercase">Manual Control</h4>
+
+        <!-- 🌊 POMPA -->
         <div class="space-y-2">
             <div class="flex justify-between items-center bg-gray-50 p-4 rounded-xl">
-                <span class="flex items-center gap-2"><span class="material-symbols-rounded text-green-600 animate-bounce">water</span> Pompa Air</span>
-                <div class="w-10 h-5 bg-green-500 rounded-full flex items-center px-1"><div class="w-3 h-3 bg-white rounded-full ml-auto animate-pulse"></div></div>
+                <span class="flex items-center gap-2">
+                    <span class="material-symbols-rounded text-green-600 animate-bounce">water</span> 
+                    Pompa Air
+                </span>
+
+                <div class="w-10 h-5 
+                    {{ ($actuators['pump'] ?? 'off')=='on' ? 'bg-green-500' : 'bg-gray-300' }} 
+                    rounded-full flex items-center px-1">
+
+                    <div class="w-3 h-3 bg-white rounded-full 
+                        {{ ($actuators['pump'] ?? 'off')=='on' ? 'ml-auto animate-pulse' : '' }}">
+                    </div>
+                </div>
             </div>
-            <button class="w-full bg-forest text-white py-3 rounded-xl hover:scale-95 transition">SIRAM SEKARANG</button>
+
+            <form action="/control/pump" method="POST">
+                @csrf
+                <button type="submit" class="w-full border border-forest text-forest py-3 rounded-xl hover:bg-forest hover:text-white transition">
+                    SIRAM SEKARANG
+                </button>
+            </form>
         </div>
+
+        <!-- 🌬️ KIPAS -->
         <div class="space-y-2">
             <div class="flex justify-between items-center bg-gray-50 p-4 rounded-xl">
-                <span class="flex items-center gap-2"><span class="material-symbols-rounded text-blue-500 animate-spin-slow">mode_fan</span> Kipas</span>
-                <div class="w-10 h-5 bg-green-500 rounded-full flex items-center px-1"><div class="w-3 h-3 bg-white rounded-full ml-auto"></div></div>
+                <span class="flex items-center gap-2">
+                    <span class="material-symbols-rounded text-blue-500 animate-spin-slow">mode_fan</span> 
+                    Kipas
+                </span>
+
+                <div class="w-10 h-5 
+                    {{ ($actuators['fan'] ?? 'off')=='on' ? 'bg-blue-500' : 'bg-gray-300' }} 
+                    rounded-full flex items-center px-1">
+
+                    <div class="w-3 h-3 bg-white rounded-full 
+                        {{ ($actuators['fan'] ?? 'off')=='on' ? 'ml-auto' : '' }}">
+                    </div>
+                </div>
             </div>
-            <button class="w-full bg-forest text-white py-3 rounded-xl hover:scale-95 transition">NYALAKAN KIPAS</button>
+
+            <form action="/control/fan" method="POST">
+                @csrf
+                <button type="submit" class="w-full border border-forest text-forest py-3 rounded-xl hover:bg-forest hover:text-white transition">
+                    NYALAKAN KIPAS
+                </button>
+            </form>
         </div>
+
+        <!-- 💡 LAMPU -->
         <div class="space-y-2">
             <div class="flex justify-between items-center bg-gray-50 p-4 rounded-xl">
-                <span class="flex items-center gap-2"><span class="material-symbols-rounded text-yellow-500 animate-pulse">lightbulb</span> Lampu UV</span>
-                <div class="w-10 h-5 bg-gray-300 rounded-full flex items-center px-1"><div class="w-3 h-3 bg-white rounded-full"></div></div>
+                <span class="flex items-center gap-2">
+                    <span class="material-symbols-rounded text-yellow-500 animate-pulse">lightbulb</span> 
+                    Lampu UV
+                </span>
+
+                <div class="w-10 h-5 
+                    {{ ($actuators['lamp'] ?? 'off')=='on' ? 'bg-yellow-500' : 'bg-gray-300' }} 
+                    rounded-full flex items-center px-1">
+
+                    <div class="w-3 h-3 bg-white rounded-full 
+                        {{ ($actuators['lamp'] ?? 'off')=='on' ? 'ml-auto' : '' }}">
+                    </div>
+                </div>
             </div>
-            <button class="w-full border border-forest text-forest py-3 rounded-xl hover:bg-forest hover:text-white transition">NYALAKAN LAMPU</button>
+
+            <form action="/control/lamp" method="POST">
+                @csrf
+                <button type="submit" class="w-full border border-forest text-forest py-3 rounded-xl hover:bg-forest hover:text-white transition">
+                    NYALAKAN LAMPU
+                </button>
+            </form>
         </div>
+
     </div>
 
     <!-- 📊 MOISTURE HEATMAP STYLE CHART -->
@@ -297,14 +405,17 @@
 <!-- SCRIPTS -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    const soilWeekly = {!! json_encode($soilWeekly ?? [0,0,0,0,0,0,0]) !!};
+
     const ctx = document.getElementById('soilHeatmapChart').getContext('2d');
+
     new Chart(ctx, {
         type: 'bar',
         data: {
             labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
             datasets: [{
                 label: 'Moisture Level',
-                data: [65, 75, 40, 85, 30, 55, 70],
+                data: soilWeekly,
                 backgroundColor: function(context) {
                     const val = context.dataset.data[context.dataIndex];
                     return val < 45 ? '#f87171' : '#3b82f6';
@@ -319,8 +430,8 @@
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-                y: { beginAtZero: true, max: 100, grid: { display: false }, ticks: { font: { size: 10 } } },
-                x: { grid: { display: false }, ticks: { font: { size: 11, weight: 'bold' } } }
+                y: { beginAtZero: true, max: 100, grid: { display: false } },
+                x: { grid: { display: false } }
             }
         }
     });

@@ -182,34 +182,51 @@
 
 <!-- STATISTICS FOOTNOTE -->
 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 px-2">
+
+    <!-- SYSTEM STATUS -->
     <div class="bg-white/50 backdrop-blur-md p-4 rounded-[1.5rem] border border-dashed border-gray-200 flex items-center gap-3">
         <span class="material-symbols-rounded text-forest opacity-50">verified_user</span>
         <div>
             <p class="text-[9px] font-black text-gray-400 uppercase">System Status</p>
-            <p class="text-xs font-bold text-forest">Secure & Active</p>
+            <p id="systemStatus" class="text-xs font-bold text-forest">
+                {{ ($systemStatus ?? 'Idle') == 'Active' ? 'Secure & Active' : 'Idle' }}
+            </p>
         </div>
     </div>
+
+    <!-- TOTAL LOGS -->
     <div class="bg-white/50 backdrop-blur-md p-4 rounded-[1.5rem] border border-dashed border-gray-200 flex items-center gap-3">
         <span class="material-symbols-rounded text-forest opacity-50">database</span>
         <div>
             <p class="text-[9px] font-black text-gray-400 uppercase">Total Logs</p>
-            <p class="text-xs font-bold text-forest">1,240 Entry</p>
+            <p id="totalLogs" class="text-xs font-bold text-forest">
+                {{ number_format($totalLogs ?? 0) }} Entry
+            </p>
         </div>
     </div>
+
+    <!-- NODES -->
     <div class="bg-white/50 backdrop-blur-md p-4 rounded-[1.5rem] border border-dashed border-gray-200 flex items-center gap-3">
         <span class="material-symbols-rounded text-forest opacity-50">sensors</span>
         <div>
             <p class="text-[9px] font-black text-gray-400 uppercase">Nodes</p>
-            <p class="text-xs font-bold text-forest">4 Active</p>
+            <p id="totalNodes" class="text-xs font-bold text-forest">
+                {{ $totalNodes ?? 0 }} Active
+            </p>
         </div>
     </div>
+
+    <!-- UPTIME -->
     <div class="bg-white/50 backdrop-blur-md p-4 rounded-[1.5rem] border border-dashed border-gray-200 flex items-center gap-3">
         <span class="material-symbols-rounded text-forest opacity-50">update</span>
         <div>
             <p class="text-[9px] font-black text-gray-400 uppercase">Uptime</p>
-            <p class="text-xs font-bold text-forest">99.9%</p>
+            <p id="uptime" class="text-xs font-bold text-forest">
+                {{ $uptime ?? 'Offline' }}
+            </p>
         </div>
     </div>
+
 </div>
 
 <script>
@@ -219,6 +236,47 @@
             sidebar.classList.toggle('hidden');
         }
     }
+
+    // 🔥 REALTIME UPDATE
+    function updateStats() {
+        fetch('/stats/realtime')
+        .then(res => res.json())
+        .then(data => {
+
+            // SYSTEM STATUS
+            const statusEl = document.getElementById('systemStatus');
+            if (statusEl) {
+                statusEl.innerText =
+                    data.systemStatus === 'Active' ? 'Secure & Active' : 'Idle';
+            }
+
+            // TOTAL LOGS
+            const logsEl = document.getElementById('totalLogs');
+            if (logsEl) {
+                logsEl.innerText =
+                    new Intl.NumberFormat().format(data.totalLogs) + ' Entry';
+            }
+
+            // NODES
+            const nodesEl = document.getElementById('totalNodes');
+            if (nodesEl) {
+                nodesEl.innerText =
+                    data.totalNodes + ' Active';
+            }
+
+            // UPTIME
+            const uptimeEl = document.getElementById('uptime');
+            if (uptimeEl) {
+                uptimeEl.innerText =
+                    data.uptime;
+            }
+
+        })
+        .catch(err => console.log('Realtime error:', err));
+    }
+
+    // 🔄 AUTO REFRESH 5 DETIK
+    setInterval(updateStats, 5000);
 </script>
 
 @endsection

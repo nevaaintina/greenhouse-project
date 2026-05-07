@@ -14,6 +14,10 @@ class SensorData extends Model
         'recorded_at'
     ];
 
+    protected $casts = [
+        'recorded_at' => 'datetime',
+    ];
+
     public function sensor()
     {
         return $this->belongsTo(Sensor::class);
