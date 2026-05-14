@@ -19,6 +19,15 @@ canvas {
 canvas:hover {
     transform: scale(1.02);
 }
+
+/* Custom Scrollbar untuk Tabel */
+.table-container::-webkit-scrollbar {
+    height: 6px;
+}
+.table-container::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 10px;
+}
 </style>
 
 <main class="max-w-7xl mx-auto p-5 md:p-8 text-slate-700">
@@ -49,7 +58,6 @@ canvas:hover {
     </a>
 </header>
 
-<!-- FILTER -->
 <form method="GET" action="/grafik">
 <div class="bg-white p-6 rounded-3xl shadow-sm border mb-2 flex flex-wrap items-center gap-4">
     <div class="flex items-center gap-2">
@@ -81,10 +89,7 @@ canvas:hover {
 </div>
 @endif
 
-<!-- CHART -->
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    
-    <!-- SOIL -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
     <section class="bg-white p-6 rounded-3xl shadow-sm border">
         <h4 class="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1 mb-4">
             <span class="material-symbols-rounded text-blue-500 text-xs">water_drop</span>
@@ -93,7 +98,6 @@ canvas:hover {
         <div class="h-[250px]"><canvas id="soilChart"></canvas></div>
     </section>
 
-    <!-- TEMP -->
     <section class="bg-white p-6 rounded-3xl shadow-sm border">
         <h4 class="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1 mb-4">
             <span class="material-symbols-rounded text-orange-500 text-xs">device_thermostat</span>
@@ -102,7 +106,6 @@ canvas:hover {
         <div class="h-[250px]"><canvas id="tempChart"></canvas></div>
     </section>
 
-    <!-- HUM -->
     <section class="bg-white p-6 rounded-3xl shadow-sm border">
         <h4 class="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1 mb-4">
             <span class="material-symbols-rounded text-emerald-500 text-xs">air</span>
@@ -111,7 +114,6 @@ canvas:hover {
         <div class="h-[250px]"><canvas id="humChart"></canvas></div>
     </section>
 
-    <!-- LIGHT -->
     <section class="bg-white p-6 rounded-3xl shadow-sm border">
         <h4 class="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1 mb-4">
             <span class="material-symbols-rounded text-yellow-500 text-xs">wb_sunny</span>
@@ -119,14 +121,66 @@ canvas:hover {
         </h4>
         <div class="h-[250px]"><canvas id="lightChart"></canvas></div>
     </section>
-
 </div>
+
+<section class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+    <div class="p-8 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+            <h3 class="text-xl font-black text-forest uppercase tracking-tight">Riwayat Data Sensor</h3>
+            <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Detailed Logs & Export</p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{{ route('grafik.export', request()->all()) }}" class="flex items-center gap-2 bg-red-50 text-red-600 px-5 py-2.5 rounded-2xl text-xs font-black hover:bg-red-600 hover:text-white transition shadow-sm border border-red-100">
+                <span class="material-symbols-rounded text-sm">picture_as_pdf</span>
+                EKSPOR PDF
+            </a>
+        </div>
+    </div>
+
+    <div class="table-container overflow-x-auto px-8 pb-8">
+        <table class="w-full text-left border-separate border-spacing-y-2">
+            <thead>
+                <tr class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                    <th class="px-4 py-3">Waktu</th>
+                    <th class="px-4 py-3">Soil (%)</th>
+                    <th class="px-4 py-3">Temp (°C)</th>
+                    <th class="px-4 py-3">Hum (%)</th>
+                    <th class="px-4 py-3">Light (Lux)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($labels as $index => $label)
+                <tr class="bg-gray-50/50 hover:bg-forest/5 transition-colors group">
+                    <td class="px-4 py-4 rounded-l-2xl border-y border-l border-gray-100/50">
+                        <span class="text-xs font-bold text-gray-600">{{ $label }}</span>
+                    </td>
+                    <td class="px-4 py-4 border-y border-gray-100/50">
+                        <span class="text-xs font-black text-blue-600">{{ $soil[$index] ?? 0 }}%</span>
+                    </td>
+                    <td class="px-4 py-4 border-y border-gray-100/50">
+                        <span class="text-xs font-black text-orange-600">{{ $temp[$index] ?? 0 }}°C</span>
+                    </td>
+                    <td class="px-4 py-4 border-y border-gray-100/50">
+                        <span class="text-xs font-black text-emerald-600">{{ $hum[$index] ?? 0 }}%</span>
+                    </td>
+                    <td class="px-4 py-4 rounded-r-2xl border-y border-r border-gray-100/50">
+                        <span class="text-xs font-black text-yellow-600">{{ $light[$index] ?? 0 }} Lux</span>
+                    </td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="5" class="text-center py-10 text-xs font-bold text-gray-400 uppercase">Tidak ada data untuk periode ini</td>
+                </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</section>
 
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-
 const labels = @json($labels ?? []);
 const tempData = @json($temp ?? []);
 const soilData = @json($soil ?? []);
@@ -207,6 +261,11 @@ chart('soilChart', soilData, getColor('soil', soilData.slice(-1)[0]), true);
 chart('tempChart', tempData, getColor('temp', tempData.slice(-1)[0]), true);
 chart('humChart', humData, '#10b981', true);
 chart('lightChart', lightData, getColor('light', lightData.slice(-1)[0]), true);
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('mobile-sidebar');
+    if (sidebar) sidebar.classList.toggle('hidden');
+}
 </script>
 
 @endsection

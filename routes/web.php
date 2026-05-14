@@ -85,4 +85,6 @@ Route::middleware(['auth'])->group(function () {
     // =====================
     Route::get('/stats/realtime', [ProfileController::class, 'realtimeStats'])->name('stats.realtime');
 
+    Route::get('/grafik/export', [AnalyticsController::class, 'export'])->name('grafik.export');
+
 });
