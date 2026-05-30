@@ -11,34 +11,26 @@ use App\Http\Controllers\SensorController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\ControlController;
 
-
 /*
 |--------------------------------------------------------------------------
 | AUTH ROUTES
 |--------------------------------------------------------------------------
 */
 
-// =====================
-// LOGIN PAGE
-// =====================
+Route::middleware('guest')->group(function ()
+{
+    // ======================================================
+    // LOGIN PAGE
+    // ======================================================
 
-Route::get('/', [AuthController::class, 'showLogin'])->name('login');
+    Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 
+    // ======================================================
+    // LOGIN PROCESS
+    // ======================================================
 
-// =====================
-// PROCESS LOGIN
-// =====================
-
-Route::post('/login', [AuthController::class, 'login'])->name('login.process');
-
-
-// =====================
-// LOGOUT
-// =====================
-
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-
-
+    Route::post('/login', [AuthController::class, 'login'])->name('login.process');
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -46,31 +38,36 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth'])->group(function ()
+Route::middleware('auth')->group(function ()
 {
+    // ======================================================
+    // LOGOUT
+    // ======================================================
+
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
     // ======================================================
     // DASHBOARD
     // ======================================================
 
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
+    Route::post('/greenhouse/switch/{id}', [ProfileController::class, 'switchGreenhouse'])->name('greenhouse.switch');
 
     // ======================================================
     // SENSOR
     // ======================================================
 
-    Route::get('/sensors', [SensorController::class, 'index'])->name('sensors');
+    Route::get('/sensors', [SensorController::class, 'index'])->name('sensors.index');
 
     // ======================================================
     // ANALYTICS / GRAFIK
     // ======================================================
 
-    Route::get('/grafik', [AnalyticsController::class, 'index'])->name('grafik');
+    Route::get('/grafik', [AnalyticsController::class, 'index'])->name('grafik.index');
 
-    // =====================
+    // ======================================================
     // EXPORT PDF
-    // =====================
+    // ======================================================
 
     Route::get('/grafik/export', [AnalyticsController::class, 'exportPdf'])->name('grafik.export');
 
@@ -78,14 +75,13 @@ Route::middleware(['auth'])->group(function ()
     // LOGS
     // ======================================================
 
-    Route::get('/logs', [LogController::class, 'index'])->name('logs');
+    Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
 
     // ======================================================
     // SETTINGS
     // ======================================================
 
-    Route::get('/settings', [SettingController::class, 'index'])->name('settings');
-
+    Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
     Route::post('/settings/update', [SettingController::class, 'update'])->name('settings.update');
 
     // ======================================================
@@ -94,16 +90,24 @@ Route::middleware(['auth'])->group(function ()
 
     Route::prefix('control')->group(function ()
     {
+        // ======================================================
+        // PUMP
+        // ======================================================
 
         Route::post('/pump', [ControlController::class, 'pump'])->name('control.pump');
 
+        // ======================================================
+        // FAN
+        // ======================================================
+
         Route::post('/fan', [ControlController::class, 'fan'])->name('control.fan');
 
+        // ======================================================
+        // LAMP
+        // ======================================================
+
         Route::post('/lamp', [ControlController::class, 'lamp'])->name('control.lamp');
-
     });
-
-
 
     // ======================================================
     // CHANGE MODE
@@ -123,21 +127,39 @@ Route::middleware(['auth'])->group(function ()
 
     Route::prefix('profile')->group(function ()
     {
+        // ======================================================
+        // PROFILE PAGE
+        // ======================================================
 
         Route::get('/', [ProfileController::class, 'index'])->name('profile');
 
+        // ======================================================
+        // EDIT PROFILE
+        // ======================================================
+
         Route::get('/edit', [ProfileController::class, 'edit'])->name('profile.edit');
 
+        // ======================================================
+        // UPDATE PROFILE
+        // ======================================================
+
         Route::put('/update', [ProfileController::class, 'update'])->name('profile.update');
-
     });
-
-
 
     // ======================================================
     // REALTIME STATS
     // ======================================================
 
     Route::get('/stats/realtime', [ProfileController::class, 'realtimeStats'])->name('stats.realtime');
+});
 
+/*
+|--------------------------------------------------------------------------
+| DEFAULT REDIRECT
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/', function ()
+{
+    return redirect()->route('login');
 });

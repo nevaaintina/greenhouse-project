@@ -2,36 +2,93 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Hidden;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+
 use Illuminate\Foundation\Auth\User as Authenticatable;
+
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'phone', 'password'])]
-#[Hidden(['password', 'remember_token'])]
+use App\Models\Log;
+use App\Models\Greenhouse;
+
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
+    // ======================================================
+    // FILLABLE
+    // ======================================================
+
+    protected $fillable = [
+
+        'name',
+        'email',
+        'phone',
+        'password',
+        'active_greenhouse_id'
+    ];
+
+    // ======================================================
+    // HIDDEN
+    // ======================================================
+
+    protected $hidden = [
+
+        'password',
+        'remember_token'
+    ];
+
+    // ======================================================
+    // CASTS
+    // ======================================================
+
     protected function casts(): array
     {
         return [
+
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
 
+    // ======================================================
+    // LOGS
+    // ======================================================
+
     public function logs()
-{
-    return $this->hasMany(Log::class);
-}
+    {
+        return $this->hasMany(
+
+            Log::class
+        );
+    }
+
+    // ======================================================
+    // GREENHOUSES
+    // ======================================================
+
+    public function greenhouses()
+    {
+        return $this->hasMany(
+
+            Greenhouse::class
+        );
+    }
+
+    // ======================================================
+    // ACTIVE GREENHOUSE
+    // ======================================================
+
+    public function activeGreenhouse()
+    {
+        return $this->belongsTo(
+
+            Greenhouse::class,
+
+            'active_greenhouse_id'
+        );
+    }
 }

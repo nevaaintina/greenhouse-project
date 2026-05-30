@@ -144,7 +144,7 @@ md:translate-x-0 md:static md:h-auto">
                 settings
             </span>
 
-            Pengaturan
+            Settings
 
         </a>
 

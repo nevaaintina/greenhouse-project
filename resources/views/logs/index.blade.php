@@ -1,14 +1,12 @@
 @extends('layouts.app')
 
+@section('title', 'Activity Log')
+
 @section('content')
 
 <!-- HEADER -->
 <header class="flex justify-between items-center mb-10 px-6">
     <div class="flex items-center gap-3">
-        <button class="block md:hidden text-forest p-1 focus:outline-none" onclick="toggleSidebar()">
-            <span class="material-symbols-rounded text-3xl">menu</span>
-        </button>
-
         <div>
             <h2 class="text-xl md:text-2xl font-bold text-forest uppercase">
                 Activity Log
@@ -32,7 +30,7 @@
 <main class="px-6">
 
 <!-- 🔍 FILTER -->
-<form method="GET" action="{{ route('logs') }}" class="mb-4 flex flex-wrap gap-2 justify-end">
+<form method="GET" action="{{ route('logs.index') }}" class="mb-4 flex flex-wrap gap-2 justify-end">
 
     <!-- SEARCH ACTIVITY -->
     <input 
@@ -121,12 +119,4 @@
 </div>
 
 </main>
-
-<script>
-function toggleSidebar() {
-    const sidebar = document.getElementById('mobile-sidebar');
-    if (sidebar) sidebar.classList.toggle('hidden');
-}
-</script>
-
 @endsection

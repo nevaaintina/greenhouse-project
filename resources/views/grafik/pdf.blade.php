@@ -162,9 +162,7 @@
                 </td>
 
                 <td>
-
-                    SmartGrow Greenhouse A
-
+                    {{ $greenhouse->name ?? '-' }}
                 </td>
 
             </tr>
@@ -178,9 +176,7 @@
                 </td>
 
                 <td>
-
-                    Malang, Indonesia
-
+                    {{ $greenhouse->location ?? '-' }}
                 </td>
 
             </tr>

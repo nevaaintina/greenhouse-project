@@ -1,30 +1,8 @@
 @extends('layouts.app')
 
+@section('title', 'Sensor Management')
+
 @section('content')
-
-@php
-
-use App\Models\Setting;
-
-// =========================
-// SETTINGS
-// =========================
-
-$setting = Setting::first();
-
-$soilMin  = $setting->soil_moisture_min ?? 45;
-$soilMax  = $setting->soil_moisture_max ?? 70;
-
-$tempMin  = $setting->temperature_min ?? 20;
-$tempMax  = $setting->temperature_max ?? 28;
-
-$humMin   = $setting->humidity_min ?? 40;
-$humMax   = $setting->humidity_max ?? 70;
-
-$lightMin = $setting->light_min ?? 300;
-$lightMax = $setting->light_max ?? 800;
-
-@endphp
 
 <!-- HEADER -->
 <header class="flex justify-between items-center mb-10">
@@ -79,6 +57,8 @@ $lightMax = $setting->light_max ?? 800;
 
 </header>
 
+
+
 <!-- SENSOR GRID -->
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
@@ -102,124 +82,166 @@ $lightMax = $setting->light_max ?? 800;
 
     $unit = '';
 
-    // =========================
+    // ======================================================
     // SENSOR LOGIC
-    // =========================
+    // ======================================================
 
-    if ($sensor && $value !== null) {
-
+    if ($sensor && $value !== null)
+    {
         // 🌱 SOIL
-        if ($sensor->type == 'soil') {
-
+        if ($sensor->type == 'soil')
+        {
             $icon = 'water_drop';
 
             $unit = '%';
 
-            $progress = min($value, 100);
+            $progress =
+                max(0, min($value, 100));
 
-            if ($value < $soilMin) {
-
+            if ($value < $soilMin)
+            {
                 $color = 'text-red-500';
+
                 $barColor = 'bg-red-500';
+
                 $label = 'Kering';
+            }
 
-            } elseif ($value <= $soilMax) {
-
+            elseif ($value <= $soilMax)
+            {
                 $color = 'text-blue-500';
+
                 $barColor = 'bg-blue-500';
+
                 $label = 'Ideal';
+            }
 
-            } else {
-
+            else
+            {
                 $color = 'text-yellow-500';
+
                 $barColor = 'bg-yellow-500';
+
                 $label = 'Basah';
             }
         }
 
         // 🌡️ TEMPERATURE
-        elseif ($sensor->type == 'temperature') {
-
+        elseif ($sensor->type == 'temperature')
+        {
             $icon = 'device_thermostat';
 
             $unit = '°C';
 
-            $progress = min(($value / 50) * 100, 100);
+            $progress =
+                max(
+                    0,
+                    min(($value / 50) * 100, 100)
+                );
 
-            if ($value > $tempMax) {
-
+            if ($value > $tempMax)
+            {
                 $color = 'text-red-500';
+
                 $barColor = 'bg-red-500';
+
                 $label = 'Panas';
+            }
 
-            } elseif ($value >= $tempMin) {
-
+            elseif ($value >= $tempMin)
+            {
                 $color = 'text-green-500';
+
                 $barColor = 'bg-green-500';
+
                 $label = 'Ideal';
+            }
 
-            } else {
-
+            else
+            {
                 $color = 'text-blue-500';
+
                 $barColor = 'bg-blue-500';
+
                 $label = 'Dingin';
             }
         }
 
         // 💧 HUMIDITY
-        elseif ($sensor->type == 'humidity') {
-
-            $icon = 'humidity_mid';
+        elseif ($sensor->type == 'humidity')
+        {
+            $icon = 'humidity_percentage';
 
             $unit = '%';
 
-            $progress = min($value, 100);
+            $progress =
+                max(0, min($value, 100));
 
-            if ($value < $humMin) {
-
+            if ($value < $humMin)
+            {
                 $color = 'text-yellow-500';
+
                 $barColor = 'bg-yellow-500';
+
                 $label = 'Kering';
+            }
 
-            } elseif ($value <= $humMax) {
-
+            elseif ($value <= $humMax)
+            {
                 $color = 'text-green-500';
+
                 $barColor = 'bg-green-500';
+
                 $label = 'Ideal';
+            }
 
-            } else {
-
+            else
+            {
                 $color = 'text-blue-500';
+
                 $barColor = 'bg-blue-500';
+
                 $label = 'Lembab';
             }
         }
 
         // 💡 LIGHT
-        elseif ($sensor->type == 'light') {
-
+        elseif ($sensor->type == 'light')
+        {
             $icon = 'wb_sunny';
 
             $unit = 'lx';
 
-            $progress = min(($value / 1000) * 100, 100);
+            $progress =
+                max(
+                    0,
+                    min(($value / 1000) * 100, 100)
+                );
 
-            if ($value < $lightMin) {
-
+            if ($value < $lightMin)
+            {
                 $color = 'text-yellow-500';
+
                 $barColor = 'bg-yellow-500';
+
                 $label = 'Gelap';
+            }
 
-            } elseif ($value <= $lightMax) {
-
+            elseif ($value <= $lightMax)
+            {
                 $color = 'text-green-500';
+
                 $barColor = 'bg-green-500';
+
                 $label = 'Ideal';
+            }
 
-            } else {
-
+            else
+            {
                 $color = 'text-orange-500';
+
                 $barColor = 'bg-orange-500';
+
                 $label = 'Terang';
             }
         }
@@ -339,14 +361,6 @@ $lightMax = $setting->light_max ?? 800;
 
         </div>
 
-        <p class="text-[10px] text-gray-300 font-mono">
-
-            {{ $sensor
-                ? 'ID: '.$sensor->greenhouse_id
-                : 'UID: ---' }}
-
-        </p>
-
     </div>
 
 </div>
@@ -354,19 +368,5 @@ $lightMax = $setting->light_max ?? 800;
 @endfor
 
 </div>
-
-<script>
-
-function toggleSidebar()
-{
-    const sidebar = document.getElementById('mobile-sidebar');
-
-    if (sidebar)
-    {
-        sidebar.classList.toggle('hidden');
-    }
-}
-
-</script>
 
 @endsection

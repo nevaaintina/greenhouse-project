@@ -1,38 +1,10 @@
 @extends('layouts.app')
 
+@section('title', 'Dashboard')
+
 @section('content')
 
 @php
-
-use App\Models\Setting;
-use App\Models\Actuator;
-
-// =========================
-// AMBIL SETTING
-// =========================
-
-$setting = Setting::first();
-
-// 🔥 ENUM SETTINGS
-// Manual / Otomatis
-
-$mode = $setting->system_mode ?? 'Otomatis';
-
-// =========================
-// AMBANG BATAS DARI SETTINGS
-// =========================
-
-$soilMin  = $setting->soil_moisture_min ?? 45;
-$soilMax  = $setting->soil_moisture_max ?? 70;
-
-$tempMin  = $setting->temperature_min ?? 20;
-$tempMax  = $setting->temperature_max ?? 28;
-
-$humMin  = $setting->humidity_min ?? 40;
-$humMax  = $setting->humidity_max ?? 80;
-
-$lightMin = $setting->light_min ?? 300;
-$lightMax = $setting->light_max ?? 800;
 
 // =========================
 // AUTO STATUS
@@ -42,16 +14,19 @@ $lightMax = $setting->light_max ?? 800;
 if ($soil < $soilMin) {
 
     $soilStatus = 'Kering';
+
     $pumpAuto = 'on';
 
 } elseif ($soil <= $soilMax) {
 
     $soilStatus = 'Ideal';
+
     $pumpAuto = 'off';
 
 } else {
 
     $soilStatus = 'Basah';
+
     $pumpAuto = 'off';
 }
 
@@ -59,16 +34,19 @@ if ($soil < $soilMin) {
 if ($temp > $tempMax) {
 
     $tempStatus = 'Overheat';
+
     $fanAuto = 'on';
 
 } elseif ($temp >= $tempMin) {
 
     $tempStatus = 'Stable';
+
     $fanAuto = 'off';
 
 } else {
 
     $tempStatus = 'Cold';
+
     $fanAuto = 'off';
 }
 
@@ -76,16 +54,19 @@ if ($temp > $tempMax) {
 if ($light < $lightMin) {
 
     $lightStatus = 'Low';
+
     $lampAuto = 'on';
 
 } elseif ($light <= $lightMax) {
 
     $lightStatus = 'Good';
+
     $lampAuto = 'off';
 
 } else {
 
     $lightStatus = 'High';
+
     $lampAuto = 'off';
 }
 
@@ -93,58 +74,27 @@ if ($light < $lightMin) {
 // PRIORITAS MODE
 // =========================
 
-// 🔥 ENUM SETTINGS
 if ($mode == 'Manual') {
 
-    // ambil actuator dari database
-    $pump = Actuator::where(
-        'greenhouse_id',
-        1
-    )->where(
-        'type',
-        'pump'
-    )->first();
+    $pumpStatus =
+        ($actuators['pump'] ?? 'off') == 'on';
 
-    $fan = Actuator::where(
-        'greenhouse_id',
-        1
-    )->where(
-        'type',
-        'fan'
-    )->first();
+    $fanStatus =
+        ($actuators['fan'] ?? 'off') == 'on';
 
-    $lamp = Actuator::where(
-        'greenhouse_id',
-        1
-    )->where(
-        'type',
-        'lamp'
-    )->first();
-
-    // status actuator manual
-    $actuators = [
-
-        'pump' => $pump->status ?? 'off',
-
-        'fan'  => $fan->status ?? 'off',
-
-        'lamp' => $lamp->status ?? 'off',
-    ];
+    $lampStatus =
+        ($actuators['lamp'] ?? 'off') == 'on';
 
 } else {
 
-    // =========================
-    // AUTO MODE
-    // =========================
+    $pumpStatus =
+        $pumpAuto == 'on';
 
-    $actuators = [
+    $fanStatus =
+        $fanAuto == 'on';
 
-        'pump' => $pumpAuto,
-
-        'fan'  => $fanAuto,
-
-        'lamp' => $lampAuto
-    ];
+    $lampStatus =
+        $lampAuto == 'on';
 }
 
 @endphp
@@ -173,207 +123,243 @@ if ($mode == 'Manual') {
     </a>
 </header>
 
-<!-- NOTIFIKASI KONDISI -->
+{{-- =======================================================
+NOTIFICATION ALERT
+======================================================= --}}
+
 @if(
-    $soil < $soilMin ||
-    $temp > $tempMax ||
-    $light < $lightMin ||
-    $hum < $humMin
+
+    (
+
+        $soil > 0 &&
+
+        (
+            $soil < $soilMin ||
+            $soil > $soilMax
+        )
+    )
+
+    ||
+
+    (
+
+        $temp > 0 &&
+
+        (
+            $temp < $tempMin ||
+            $temp > $tempMax
+        )
+    )
+
+    ||
+
+    (
+
+        $light > 0 &&
+
+        (
+            $light < $lightMin ||
+            $light > $lightMax
+        )
+    )
+
+    ||
+
+    (
+
+        $hum > 0 &&
+
+        (
+            $hum < $humMin ||
+            $hum > $humMax
+        )
+    )
 )
 
-<div class="mb-6 space-y-3">
+<div class="mb-6 space-y-4">
 
-    <!-- 🌱 SOIL ALERT -->
-    @if($soil < $soilMin)
+    {{-- =======================================================
+    SOIL ALERT
+    ======================================================= --}}
 
-    <div class="flex items-center justify-between
-        bg-red-50 border-l-4 border-red-500
-        p-4 rounded-r-2xl shadow-sm animate-pulse">
+    @if(
 
-        <div class="flex items-center gap-3">
+        $soil > 0 &&
 
-            <div class="bg-red-500 p-2 rounded-full text-white">
+        (
+            $soil < $soilMin ||
+            $soil > $soilMax
+        )
+    )
 
-                <span class="material-symbols-rounded text-sm">
-                    water_drop
-                </span>
+    <div class="bg-red-50 border border-red-100 rounded-3xl p-5 flex items-start gap-4 shadow-sm">
 
-            </div>
+        <div class="w-12 h-12 rounded-2xl bg-red-100 text-red-500 flex items-center justify-center flex-shrink-0">
 
-            <div>
-
-                <h5 class="text-xs font-black text-red-800 uppercase tracking-tighter">
-                    Soil Moisture Alert
-                </h5>
-
-                <p class="text-[11px] text-red-600 font-medium">
-
-                    Tanah terlalu kering
-                    ({{ $soil }}%).
-
-                    Pompa otomatis akan aktif.
-
-                </p>
-
-            </div>
+            <span class="material-symbols-rounded">
+                water_drop
+            </span>
 
         </div>
 
-        <button class="text-red-400 hover:text-red-600"
-            onclick="this.parentElement.remove()">
+        <div class="flex-1">
 
-            <span class="material-symbols-rounded">
-                close
-            </span>
+            <h4 class="font-bold text-red-600 text-sm uppercase">
+                Soil Moisture Warning
+            </h4>
 
-        </button>
+            <p class="text-sm text-red-500 mt-1">
+
+                {{ $soil < $soilMin
+                    ? 'Kelembapan tanah terlalu rendah'
+                    : 'Kelembapan tanah terlalu tinggi' }}
+
+                ({{ $soil }}%)
+
+            </p>
+
+        </div>
 
     </div>
 
     @endif
 
-    <!-- 🌡️ TEMPERATURE ALERT -->
-    @if($temp > $tempMax)
 
-    <div class="flex items-center justify-between
-        bg-orange-50 border-l-4 border-orange-500
-        p-4 rounded-r-2xl shadow-sm animate-pulse">
+    {{-- =======================================================
+    TEMPERATURE ALERT
+    ======================================================= --}}
 
-        <div class="flex items-center gap-3">
+    @if(
 
-            <div class="bg-orange-500 p-2 rounded-full text-white">
+        $temp > 0 &&
 
-                <span class="material-symbols-rounded text-sm">
-                    device_thermostat
-                </span>
+        (
+            $temp < $tempMin ||
+            $temp > $tempMax
+        )
+    )
 
-            </div>
+    <div class="bg-orange-50 border border-orange-100 rounded-3xl p-5 flex items-start gap-4 shadow-sm">
 
-            <div>
+        <div class="w-12 h-12 rounded-2xl bg-orange-100 text-orange-500 flex items-center justify-center flex-shrink-0">
 
-                <h5 class="text-xs font-black text-orange-800 uppercase tracking-tighter">
-                    Temperature Warning
-                </h5>
-
-                <p class="text-[11px] text-orange-600 font-medium">
-
-                    Suhu greenhouse terlalu tinggi
-                    ({{ $temp }}°C).
-
-                    Kipas otomatis dinyalakan.
-
-                </p>
-
-            </div>
+            <span class="material-symbols-rounded">
+                device_thermostat
+            </span>
 
         </div>
 
-        <button class="text-orange-400 hover:text-orange-600"
-            onclick="this.parentElement.remove()">
+        <div class="flex-1">
 
-            <span class="material-symbols-rounded">
-                close
-            </span>
+            <h4 class="font-bold text-orange-600 text-sm uppercase">
+                Temperature Warning
+            </h4>
 
-        </button>
+            <p class="text-sm text-orange-500 mt-1">
+
+                {{ $temp > $tempMax
+                    ? 'Suhu greenhouse terlalu tinggi'
+                    : 'Suhu greenhouse terlalu rendah' }}
+
+                ({{ $temp }}°C)
+
+            </p>
+
+        </div>
 
     </div>
 
     @endif
 
-    <!-- 💡 LIGHT ALERT -->
-    @if($light < $lightMin)
 
-    <div class="flex items-center justify-between
-        bg-yellow-50 border-l-4 border-yellow-500
-        p-4 rounded-r-2xl shadow-sm animate-pulse">
+    {{-- =======================================================
+    HUMIDITY ALERT
+    ======================================================= --}}
 
-        <div class="flex items-center gap-3">
+    @if(
 
-            <div class="bg-yellow-500 p-2 rounded-full text-white">
+        $hum > 0 &&
 
-                <span class="material-symbols-rounded text-sm">
-                    lightbulb
-                </span>
+        (
+            $hum < $humMin ||
+            $hum > $humMax
+        )
+    )
 
-            </div>
+    <div class="bg-cyan-50 border border-cyan-100 rounded-3xl p-5 flex items-start gap-4 shadow-sm">
 
-            <div>
+        <div class="w-12 h-12 rounded-2xl bg-cyan-100 text-cyan-500 flex items-center justify-center flex-shrink-0">
 
-                <h5 class="text-xs font-black text-yellow-800 uppercase tracking-tighter">
-                    Light Intensity Alert
-                </h5>
-
-                <p class="text-[11px] text-yellow-700 font-medium">
-
-                    Intensitas cahaya rendah
-                    ({{ $light }} lux).
-
-                    Lampu UV otomatis aktif.
-
-                </p>
-
-            </div>
+            <span class="material-symbols-rounded">
+                humidity_mid
+            </span>
 
         </div>
 
-        <button class="text-yellow-500 hover:text-yellow-700"
-            onclick="this.parentElement.remove()">
+        <div class="flex-1">
 
-            <span class="material-symbols-rounded">
-                close
-            </span>
+            <h4 class="font-bold text-cyan-600 text-sm uppercase">
+                Humidity Warning
+            </h4>
 
-        </button>
+            <p class="text-sm text-cyan-500 mt-1">
+
+                {{ $hum > $humMax
+                    ? 'Kelembapan udara terlalu tinggi'
+                    : 'Kelembapan udara terlalu rendah' }}
+
+                ({{ $hum }}%)
+
+            </p>
+
+        </div>
 
     </div>
 
     @endif
 
-    <!-- 💧 HUMIDITY ALERT -->
-    @if($hum < $humMin)
 
-    <div class="flex items-center justify-between
-        bg-cyan-50 border-l-4 border-cyan-500
-        p-4 rounded-r-2xl shadow-sm animate-pulse">
+    {{-- =======================================================
+    LIGHT ALERT
+    ======================================================= --}}
 
-        <div class="flex items-center gap-3">
+    @if(
 
-            <div class="bg-cyan-500 p-2 rounded-full text-white">
+        $light > 0 &&
 
-                <span class="material-symbols-rounded text-sm">
-                    air
-                </span>
+        (
+            $light < $lightMin ||
+            $light > $lightMax
+        )
+    )
 
-            </div>
+    <div class="bg-yellow-50 border border-yellow-100 rounded-3xl p-5 flex items-start gap-4 shadow-sm">
 
-            <div>
+        <div class="w-12 h-12 rounded-2xl bg-yellow-100 text-yellow-500 flex items-center justify-center flex-shrink-0">
 
-                <h5 class="text-xs font-black text-cyan-800 uppercase tracking-tighter">
-                    Humidity Warning
-                </h5>
-
-                <p class="text-[11px] text-cyan-700 font-medium">
-
-                    Kelembapan udara rendah
-                    ({{ $hum }}%).
-
-                    Kondisi greenhouse kurang optimal.
-
-                </p>
-
-            </div>
+            <span class="material-symbols-rounded">
+                wb_sunny
+            </span>
 
         </div>
 
-        <button class="text-cyan-500 hover:text-cyan-700"
-            onclick="this.parentElement.remove()">
+        <div class="flex-1">
 
-            <span class="material-symbols-rounded">
-                close
-            </span>
+            <h4 class="font-bold text-yellow-600 text-sm uppercase">
+                Light Warning
+            </h4>
 
-        </button>
+            <p class="text-sm text-yellow-500 mt-1">
+
+                {{ $light > $lightMax
+                    ? 'Intensitas cahaya terlalu tinggi'
+                    : 'Intensitas cahaya terlalu rendah' }}
+
+                ({{ $light }} Lux)
+
+            </p>
+
+        </div>
 
     </div>
 
@@ -389,7 +375,7 @@ if ($mode == 'Manual') {
 
     <!-- 🌊 SOIL MOISTURE (Circular Liquid Gauge) -->
     <div class="bg-white/80 p-5 rounded-3xl shadow flex flex-col items-center relative overflow-hidden group border border-transparent hover:border-blue-200 transition-all">
-        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Soil Moisture</p>
+        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Kelembapan Tanah</p>
         <div class="relative w-28 h-28 rounded-full border-4 border-gray-100 shadow-inner flex items-center justify-center bg-gray-50 overflow-hidden">
             <div class="absolute bottom-0 w-full bg-gradient-to-t from-blue-600 to-blue-400 transition-all duration-1000" style="height: {{ $soil }}%">
                 <div class="absolute -top-4 left-0 w-[200%] h-5 bg-white/20 rounded-[40%] animate-wave"></div>
@@ -406,7 +392,7 @@ if ($mode == 'Manual') {
 
     <!-- 🌡️ TEMPERATURE (With Side Red Bar Indication) -->
     <div class="bg-white/80 p-5 rounded-3xl shadow flex flex-col items-center relative group border border-transparent hover:border-orange-200 transition-all">
-        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Temperature</p>
+        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Suhu Udara</p>
         <div class="relative w-28 h-28 flex items-center justify-center rounded-full bg-gray-50 border-4 border-gray-100">
             <span class="material-symbols-rounded absolute text-6xl text-orange-100 opacity-70">device_thermostat</span>
             
@@ -424,7 +410,7 @@ if ($mode == 'Manual') {
 
     <!-- 💧 HUMIDITY (Animated Mist Icon) -->
     <div class="bg-white/80 p-5 rounded-3xl shadow flex flex-col items-center relative group border border-transparent hover:border-emerald-200 transition-all">
-        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Humidity</p>
+        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Kelembapan Udara</p>
         <div class="relative w-28 h-28 flex items-center justify-center rounded-full bg-gray-50 border-4 border-gray-100 overflow-hidden">
             <div class="absolute w-20 h-20 bg-emerald-400/20 rounded-full blur-xl animate-pulse"></div>
             
@@ -441,7 +427,7 @@ if ($mode == 'Manual') {
 
     <!-- ☀️ LIGHT (Sunshine Radial Style) -->
     <div class="bg-white/80 p-5 rounded-3xl shadow flex flex-col items-center relative group border border-transparent hover:border-yellow-200 transition-all">
-        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Light Intensity</p>
+        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Intensitas Cahaya</p>
         <div class="relative w-28 h-28 flex items-center justify-center">
             <span class="material-symbols-rounded text-5xl text-yellow-500 animate-spin-slow absolute">wb_sunny</span>
             <div class="absolute inset-0 border-2 border-dashed border-yellow-200 rounded-full animate-spin-slow" style="animation-duration: 10s"></div>
@@ -500,7 +486,7 @@ if ($temp >= 32) {
 
     <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">
 
-        Local Weather
+        Cuaca Lokal
 
     </p>
 
@@ -522,8 +508,8 @@ if ($temp >= 32) {
             </h3>
 
             <p class="text-[10px] text-gray-400 font-bold uppercase">
-
-                {{ now()->format('l') }}, ID
+                
+            {{ now()->translatedFormat('l, d F Y') }}
 
             </p>
 
@@ -534,7 +520,7 @@ if ($temp >= 32) {
     <p class="text-[10px] font-bold uppercase mt-4
         {{ $weatherColor }}">
 
-        Rain Prob: {{ $rainProb }}
+        Probabilitas Hujan: {{ $rainProb }}
 
     </p>
 
@@ -881,11 +867,6 @@ MANUAL CONTROL
     PUMP
     ========================= -->
 
-    @php
-        $pumpStatus =
-            ($actuators['pump'] ?? 'off') == 'on';
-    @endphp
-
     <div class="space-y-2">
 
         <!-- CARD -->
@@ -959,11 +940,6 @@ MANUAL CONTROL
     FAN
     ========================= -->
 
-    @php
-        $fanStatus =
-            ($actuators['fan'] ?? 'off') == 'on';
-    @endphp
-
     <div class="space-y-2">
 
         <div class="flex justify-between items-center bg-gray-50 p-4 rounded-xl">
@@ -1033,11 +1009,6 @@ MANUAL CONTROL
     <!-- =========================
     LAMP
     ========================= -->
-
-    @php
-        $lampStatus =
-            ($actuators['lamp'] ?? 'off') == 'on';
-    @endphp
 
     <div class="space-y-2">
 
@@ -1418,15 +1389,8 @@ if (ctx)
         data:
         {
             labels:
-            [
-                'Mon',
-                'Tue',
-                'Wed',
-                'Thu',
-                'Fri',
-                'Sat',
-                'Sun'
-            ],
+            
+            {!! json_encode($weeklyLabels) !!},
 
             datasets:
             [{

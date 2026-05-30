@@ -11,12 +11,13 @@ class Log extends Model
     protected $fillable = [
         'user_id',
         'activity',
+        'greenhouse_id',
         'description',
         'created_at'
     ];
 
     protected $casts = [
-        'created_at' => 'datetime', // 🔥 INI PENTING
+        'created_at' => 'datetime', 
     ];
 
     public function user()

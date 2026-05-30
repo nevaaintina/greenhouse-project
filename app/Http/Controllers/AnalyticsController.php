@@ -1,8 +1,8 @@
 <?php
 
 namespace App\Http\Controllers;
-
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use App\Models\Sensor;
 use App\Models\SensorData;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -16,7 +16,9 @@ class AnalyticsController extends Controller
 
     public function index(Request $request)
     {
-        $analytics = $this->getAnalyticsData($request);
+        $analytics = $this->getAnalyticsData(
+            $request
+        );
 
         return view(
             'grafik.index',
@@ -24,36 +26,29 @@ class AnalyticsController extends Controller
         );
     }
 
-
-
     // ======================================================
     // EXPORT PDF
     // ======================================================
 
     public function exportPdf(Request $request)
     {
-        $analytics = $this->getAnalyticsData($request);
+        $analytics = $this->getAnalyticsData(
+            $request
+        );
 
         $pdf = Pdf::loadView(
-
             'grafik.pdf',
-
             $analytics
 
         )->setPaper(
-
             'a4',
-
             'landscape'
         );
 
         return $pdf->download(
-
             'smartgrow-report.pdf'
         );
     }
-
-
 
     // ======================================================
     // GET ANALYTICS DATA
@@ -62,86 +57,165 @@ class AnalyticsController extends Controller
     private function getAnalyticsData($request)
     {
         // ======================================================
-        // FILTER
+        // USER LOGIN
+        // ======================================================
+
+        $user = Auth::user();
+
+        // ======================================================
+        // VALIDASI USER
+        // ======================================================
+
+        if (!$user)
+        {
+            return [
+                'greenhouse' => null,
+                'labels' => collect(),
+                'temp' => collect(),
+                'soil' => collect(),
+                'hum' => collect(),
+                'light' => collect(),
+                'filterInfo' => 'User belum login',
+                'startDate' => null,
+                'endDate' => null
+            ];
+        }
+
+        // ======================================================
+        // ACTIVE GREENHOUSE
+        // ======================================================
+
+        $greenhouse = $user->activeGreenhouse;
+
+        // ======================================================
+        // VALIDASI GREENHOUSE
+        // ======================================================
+
+        if (!$greenhouse)
+        {
+            return [
+                'greenhouse' => null,
+                'labels' => collect(),
+                'temp' => collect(),
+                'soil' => collect(),
+                'hum' => collect(),
+                'light' => collect(),
+                'filterInfo' => 'Greenhouse tidak ditemukan',
+                'startDate' => null,
+                'endDate' => null
+            ];
+        }
+
+        // ======================================================
+        // FILTER DATE
         // ======================================================
 
         $startDate = $request->start_date;
-
         $endDate = $request->end_date;
 
+        // ======================================================
+        // VALIDASI DATE
+        // ======================================================
+
+        if ($startDate && !strtotime($startDate))
+        {
+            $startDate = null;
+        }
+
+        if ($endDate && !strtotime($endDate))
+        {
+            $endDate = null;
+        }
 
         // ======================================================
-        // SENSOR MAP
+        // SENSOR USER
         // ======================================================
 
-        $sensors = Sensor::pluck(
+        $sensors = Sensor::where(
+                'greenhouse_id',
+                $greenhouse->id
 
-            'id',
-            'type'
-        );
-
+            )->pluck(
+                'id',
+                'type'
+            );
 
         // ======================================================
         // FUNCTION GET DATA
         // ======================================================
 
-        $getData = function ($type) use (
+        $getData = function (
+            $type
 
+        ) use (
             $sensors,
             $startDate,
             $endDate
-
         ) {
+
+            // ======================================================
+            // VALIDASI SENSOR
+            // ======================================================
 
             if (!isset($sensors[$type]))
             {
                 return collect();
             }
 
-            $query = SensorData::where(
+            // ======================================================
+            // QUERY
+            // ======================================================
 
+            $query = SensorData::where(
                 'sensor_id',
                 $sensors[$type]
             );
 
-
             // ======================================================
-            // FILTER DATE RANGE
+            // FILTER START DATE
             // ======================================================
 
-            if ($startDate && $endDate)
+            if ($startDate)
             {
-                $query->whereBetween(
-
+                $query->where(
                     'recorded_at',
-
-                    [
-                        Carbon::parse($startDate)
-                            ->startOfDay(),
-
-                        Carbon::parse($endDate)
-                            ->endOfDay()
-                    ]
+                    '>=',
+                    Carbon::parse(
+                        $startDate
+                    )->startOfDay()
                 );
             }
 
+            // ======================================================
+            // FILTER END DATE
+            // ======================================================
+
+            if ($endDate)
+            {
+                $query->where(
+                    'recorded_at',
+                    '<=',
+                    Carbon::parse(
+                        $endDate
+                    )->endOfDay()
+                );
+            }
 
             // ======================================================
             // GET DATA
             // ======================================================
 
             $data = $query
-
                 ->orderBy(
-
                     'recorded_at',
                     'asc'
+                )
 
-                )->get();
-
+                ->take(500)
+                ->get();
 
             // ======================================================
-            // GROUPING DATETIME
+            // GROUP DATETIME
             // ======================================================
 
             return $data->groupBy(
@@ -149,27 +223,35 @@ class AnalyticsController extends Controller
                 function ($d)
                 {
                     return Carbon::parse(
-
                         $d->recorded_at
+                    )->format(
 
-                    )->format('Y-m-d H:i');
+                        'Y-m-d H:i'
+                    );
                 }
             );
         };
 
-
         // ======================================================
-        // GET ALL SENSOR
+        // GET SENSOR DATA
         // ======================================================
 
-        $tempData = $getData('temperature');
+        $tempData = $getData(
 
-        $soilData = $getData('soil');
+            'temperature'
+        );
 
-        $humData = $getData('humidity');
+        $soilData = $getData(
+            'soil'
+        );
 
-        $lightData = $getData('light');
+        $humData = $getData(
+            'humidity'
+        );
 
+        $lightData = $getData(
+            'light'
+        );
 
         // ======================================================
         // COMBINE LABELS
@@ -177,20 +259,25 @@ class AnalyticsController extends Controller
 
         $allTimes = collect()
 
-            ->merge($tempData->keys())
+            ->merge(
+                $tempData->keys()
+            )
 
-            ->merge($soilData->keys())
+            ->merge(
+                $soilData->keys()
+            )
 
-            ->merge($humData->keys())
+            ->merge(
+                $humData->keys()
+            )
 
-            ->merge($lightData->keys())
+            ->merge(
+                $lightData->keys()
+            )
 
             ->unique()
-
             ->sort()
-
             ->values();
-
 
         // ======================================================
         // NORMALIZE
@@ -204,24 +291,24 @@ class AnalyticsController extends Controller
         ) {
 
             return $allTimes->map(
+                function ($time)
+                use (
+                    $grouped
+                ) {
+                    return isset(
+                        $grouped[$time]
+                    )
 
-                function ($time) use ($grouped)
-                {
-                    return isset($grouped[$time])
+                    ? round(
+                        $grouped[$time]
+                            ->avg('value'),
+                        2
+                    )
 
-                        ? round(
-
-                            $grouped[$time]
-                                ->avg('value'),
-
-                            2
-                        )
-
-                        : null;
+                    : null;
                 }
             );
         };
-
 
         // ======================================================
         // FILTER INFO
@@ -232,18 +319,46 @@ class AnalyticsController extends Controller
         if ($startDate && $endDate)
         {
             $filterInfo =
+                Carbon::parse(
+                    $startDate
 
-                Carbon::parse($startDate)
-
-                    ->translatedFormat('d F Y')
+                )->translatedFormat(
+                    'd F Y'
+                )
 
                 . ' - ' .
 
-                Carbon::parse($endDate)
+                Carbon::parse(
+                    $endDate
 
-                    ->translatedFormat('d F Y');
+                )->translatedFormat(
+                    'd F Y'
+                );
         }
 
+        elseif ($startDate)
+        {
+            $filterInfo =
+                'Mulai '
+                .
+                Carbon::parse(
+                    $startDate
+                )->translatedFormat(
+                    'd F Y'
+                );
+        }
+
+        elseif ($endDate)
+        {
+            $filterInfo =
+                'Sampai '
+                .
+                Carbon::parse(
+                    $endDate
+                )->translatedFormat(
+                    'd F Y'
+                );
+        }
 
         // ======================================================
         // RETURN
@@ -251,8 +366,8 @@ class AnalyticsController extends Controller
 
         return [
 
+            'greenhouse' => $greenhouse,
             'labels' => $allTimes,
-
             'temp' => $normalize(
                 $tempData,
                 $allTimes
@@ -274,9 +389,7 @@ class AnalyticsController extends Controller
             ),
 
             'filterInfo' => $filterInfo,
-
             'startDate' => $startDate,
-
             'endDate' => $endDate
         ];
     }

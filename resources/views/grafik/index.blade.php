@@ -1,5 +1,7 @@
 @extends('layouts.app')
 
+@section('title', 'Data Analytics')
+
 @section('content')
 
 <main class="max-w-7xl mx-auto p-5 md:p-8 text-slate-700">
@@ -12,17 +14,6 @@ HEADER
 
     <!-- LEFT -->
     <div class="flex items-center gap-3">
-
-        <!-- MOBILE MENU -->
-        <button
-            class="block md:hidden text-forest p-1 focus:outline-none"
-            onclick="toggleSidebar()">
-
-            <span class="material-symbols-rounded text-3xl">
-                menu
-            </span>
-
-        </button>
 
         <!-- TITLE -->
         <div>
@@ -77,7 +68,7 @@ HEADER
 FILTER
 ======================================================= -->
 
-<form method="GET" action="{{ route('grafik') }}">
+<form method="GET" action="{{ route('grafik.index') }}">
 
     <div
         class="bg-white p-6 rounded-3xl shadow-sm border
@@ -174,7 +165,7 @@ FILTER
 
         <!-- RESET -->
         <a
-            href="{{ route('grafik') }}"
+            href="{{ route('grafik.index') }}"
 
             class="bg-gray-100 text-gray-500
             px-6 py-2 rounded-xl
@@ -194,7 +185,7 @@ FILTER
 FILTER INFO
 ======================================================= -->
 
-@if(request('date'))
+@if(request('start_date') && request('end_date'))
 
 <div class="mb-6 text-xs text-gray-400 px-1">
 
@@ -226,7 +217,7 @@ CHART SECTION
 
             </span>
 
-            Soil Moisture (%)
+            Kelembapan Tanah (%)
 
         </h4>
 
@@ -253,7 +244,7 @@ CHART SECTION
 
             </span>
 
-            Temperature (°C)
+            Suhu (°C)
 
         </h4>
 
@@ -280,7 +271,7 @@ CHART SECTION
 
             </span>
 
-            Humidity (%)
+            Kelembapan Udara (%)
 
         </h4>
 
@@ -307,7 +298,7 @@ CHART SECTION
 
             </span>
 
-            Light Intensity (Lux)
+            Intensitas Cahaya (Lux)
 
         </h4>
 
@@ -436,6 +427,7 @@ TABLE SECTION
 
                         <span
                             class="text-xs font-bold text-gray-600">
+
                             {{ \Carbon\Carbon::parse($label)->translatedFormat('d M Y • H:i') }}
 
                         </span>
@@ -527,7 +519,18 @@ CHART JS
 <script>
 
 const labels =
-    @json($labels ?? []);
+    @json($labels ?? []).map(label =>
+    {
+        const d = new Date(label);
+
+        return d.toLocaleDateString(
+            'id-ID',
+            {
+                day: '2-digit',
+                month: 'short'
+            }
+        );
+    });
 
 const tempData =
     @json($temp ?? []);
@@ -707,14 +710,24 @@ function chart(id, data, color, fill = false)
 chart(
     'soilChart',
     soilData,
-    getColor('soil', soilData.slice(-1)[0]),
+    getColor(
+        'soil',
+        soilData.length
+            ? soilData[soilData.length - 1]
+            : 0
+    ),
     true
 );
 
 chart(
     'tempChart',
     tempData,
-    getColor('temp', tempData.slice(-1)[0]),
+    getColor(
+        'temp',
+        tempData.length
+            ? tempData[tempData.length - 1]
+            : 0
+    ),
     true
 );
 
@@ -728,28 +741,16 @@ chart(
 chart(
     'lightChart',
     lightData,
-    getColor('light', lightData.slice(-1)[0]),
+    getColor(
+        'light',
+        lightData.length
+            ? lightData[lightData.length - 1]
+            : 0
+    ),
     true
 );
 
-
-// =======================================================
-// MOBILE SIDEBAR
-// =======================================================
-
-function toggleSidebar()
-{
-    const sidebar =
-        document.getElementById('mobile-sidebar');
-
-    if (sidebar)
-    {
-        sidebar.classList.toggle('hidden');
-    }
-}
-
 </script>
-
 
 
 <!-- =======================================================

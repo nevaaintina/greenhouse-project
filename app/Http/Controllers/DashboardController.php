@@ -1,152 +1,316 @@
 <?php
 
 namespace App\Http\Controllers;
-
 use App\Models\Sensor;
 use App\Models\SensorData;
 use App\Models\Actuator;
 use App\Models\Setting;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
+    // ======================================================
+    // DASHBOARD
+    // ======================================================
+
     public function index()
     {
-        // ======================
-        // SENSOR
-        // ======================
+        // ======================================================
+        // USER LOGIN
+        // ======================================================
 
-        $sensors = Sensor::with('latestData')->get();
+        $user = Auth::user();
 
-        $map = $sensors->keyBy('type');
+        // ======================================================
+        // VALIDASI USER
+        // ======================================================
 
-        $getLatest = function ($type) use ($map) {
+        if (!$user)
+        {
+            return redirect()
+                ->route('login');
+        }
 
-            return optional(
-                optional($map->get($type))->latestData
-            )->value ?? 0;
+        // ======================================================
+        // ACTIVE GREENHOUSE
+        // ======================================================
+
+        $greenhouse = $user->activeGreenhouse;
+
+        // ======================================================
+        // VALIDASI GREENHOUSE
+        // ======================================================
+
+        if (!$greenhouse)
+        {
+            return back()->with(
+                'error',
+                'Greenhouse aktif tidak ditemukan'
+            );
+        }
+
+        // ======================================================
+        // SENSOR USER
+        // ======================================================
+
+        $sensors = Sensor::with(
+
+                'latestData'
+
+            )->where(
+
+                'greenhouse_id',
+                $greenhouse->id
+
+            )->get();
+
+        // ======================================================
+        // SENSOR MAP
+        // ======================================================
+
+        $map = $sensors->keyBy(
+            'type'
+        );
+
+        // ======================================================
+        // GET LATEST VALUE
+        // ======================================================
+
+        $getLatest = function ($type) use ($map)
+        {
+            return $map
+                ->get($type)
+                ?->latestData
+                ?->value ?? 0;
         };
 
-        $soil  = $getLatest('soil');
-        $temp  = $getLatest('temperature');
-        $hum   = $getLatest('humidity');
-        $light = $getLatest('light');
+        // ======================================================
+        // SENSOR VALUE
+        // ======================================================
 
-        // ======================
+        $soil = $getLatest(
+            'soil'
+        );
+
+        $temp = $getLatest(
+            'temperature'
+        );
+
+        $hum = $getLatest(
+            'humidity'
+        );
+
+        $light = $getLatest(
+            'light'
+        );
+
+        // ======================================================
         // WEEKLY SOIL CHART
-        // ======================
+        // ======================================================
 
         $soilWeekly = [];
+        $weeklyLabels = [];
 
-        if (isset($map['soil'])) {
+        // ======================================================
+        // SOIL SENSOR
+        // ======================================================
 
-            $data = SensorData::where(
+        if (isset($map['soil']))
+        {
+            $soilData = SensorData::where(
+
                     'sensor_id',
                     $map['soil']->id
-                )
-                ->whereBetween('recorded_at', [
 
-                    Carbon::now()
-                        ->subDays(6)
-                        ->startOfDay(),
+                )->whereBetween(
 
-                    Carbon::now()
-                        ->endOfDay()
-                ])
-                ->orderBy('recorded_at')
-                ->get()
-                ->groupBy(fn($d) =>
+                    'recorded_at',
 
-                    Carbon::parse(
+                    [
+
+                        Carbon::now()
+                            ->subDays(6)
+                            ->startOfDay(),
+
+                        Carbon::now()
+                            ->endOfDay()
+                    ]
+
+                )->latest(
+                    'recorded_at'
+
+                )->take(
+                    500
+
+                )->get()
+
+                ->groupBy(function ($d)
+                {
+                    return Carbon::parse(
                         $d->recorded_at
-                    )->format('D')
-                );
 
-            $days = [
-                'Mon',
-                'Tue',
-                'Wed',
-                'Thu',
-                'Fri',
-                'Sat',
-                'Sun'
-            ];
+                    )->format(
+                        'Y-m-d'
+                    );
+                });
 
-            foreach ($days as $day) {
+            // ======================================================
+            // LAST 7 DAYS
+            // ======================================================
 
-                $soilWeekly[] = round(
+            $days = collect();
 
-                    optional(
-                        $data[$day] ?? collect()
-                    )->avg('value') ?? 0
+            for ($i = 6; $i >= 0; $i--)
+            {
+                $days->push(
+                    Carbon::now()
+                        ->subDays($i)
                 );
             }
 
-        } else {
+            // ======================================================
+            // BUILD WEEKLY DATA
+            // ======================================================
 
-            $soilWeekly = [0,0,0,0,0,0,0];
+            foreach (
+
+                $days as $index => $day
+
+            ) {
+
+                // ======================================================
+                // DATE KEY
+                // ======================================================
+
+                $key = $day->format(
+                    'Y-m-d'
+                );
+
+                // ======================================================
+                // LABEL HARI
+                // ======================================================
+
+                $weeklyLabels[] = $day
+
+                    ->translatedFormat('D');
+
+                // ======================================================
+                // WEEKLY VALUE
+                // ======================================================
+
+                $soilWeekly[$index] = round(
+
+                    optional(
+                        $soilData[$key]
+                        ?? collect()
+
+                    )->avg(
+
+                        'value'
+                    ) ?? 0
+                );
+            }
         }
 
-        // ======================
+        // ======================================================
         // SETTING
-        // ======================
+        // ======================================================
 
-        $setting = Setting::first();
+        $setting = Setting::firstOrCreate(
 
-        // 🔥 ENUM SETTINGS
-        $mode = $setting->system_mode ?? 'Otomatis';
+            [
+                'greenhouse_id' =>
+                    $greenhouse->id
+            ],
 
-        // ======================
-        // AMBANG BATAS
-        // ======================
+            [
 
-        $soilMin = $setting->soil_moisture_min ?? 45;
-        $soilMax = $setting->soil_moisture_max ?? 70;
+                'system_mode' =>
+                    'Otomatis',
 
-        $tempMin = $setting->temperature_min ?? 20;
-        $tempMax = $setting->temperature_max ?? 28;
+                'soil_moisture_min' => 45,
+                'soil_moisture_max' => 70,
 
-        $humMin = $setting->humidity_min ?? 40;
-        $humMax = $setting->humidity_max ?? 80;
+                'temperature_min' => 20,
+                'temperature_max' => 28,
 
-        $lightMin = $setting->light_min ?? 300;
-        $lightMax = $setting->light_max ?? 800;
+                'humidity_min' => 40,
+                'humidity_max' => 80,
 
-        // ======================
-        // AUTO ACTUATOR
-        // ======================
+                'light_min' => 300,
+                'light_max' => 800
+            ]
+        );
 
-        // 🌱 PUMP
-        $pumpAuto = $soil < $soilMin
+        // ======================================================
+        // MODE
+        // ======================================================
+
+        $mode = $setting->system_mode;
+
+        // ======================================================
+        // THRESHOLD
+        // ======================================================
+
+        $soilMin =
+            $setting->soil_moisture_min;
+
+        $soilMax =
+            $setting->soil_moisture_max;
+
+        $tempMin =
+            $setting->temperature_min;
+
+        $tempMax =
+            $setting->temperature_max;
+
+        $humMin =
+            $setting->humidity_min;
+
+        $humMax =
+            $setting->humidity_max;
+
+        $lightMin =
+            $setting->light_min;
+
+        $lightMax =
+            $setting->light_max;
+
+        // ======================================================
+        // AUTO STATUS
+        // ======================================================
+
+        $pumpAuto =
+            $soil > 0 && $soil < $soilMin
             ? 'on'
             : 'off';
 
-        // 🌡️ FAN
-        $fanAuto = $temp > $tempMax
+        $fanAuto =
+            $temp > 0 && $temp > $tempMax
             ? 'on'
             : 'off';
 
-        // 💡 LAMP
-        $lampAuto = $light < $lightMin
+        $lampAuto =
+            $light > 0 && $light < $lightMin
             ? 'on'
             : 'off';
 
-        // ======================
-        // ACTUATOR DATABASE
-        // ======================
+        // ======================================================
+        // ACTUATORS
+        // ======================================================
 
         $pump = Actuator::firstOrCreate(
 
             [
-                'greenhouse_id' => 1,
+                'greenhouse_id' =>
+                    $greenhouse->id,
                 'type' => 'pump'
             ],
 
             [
                 'name' => 'Pompa Air',
                 'status' => 'off',
-
-                // 🔥 actuator enum
                 'mode' => 'auto'
             ]
         );
@@ -154,15 +318,14 @@ class DashboardController extends Controller
         $fan = Actuator::firstOrCreate(
 
             [
-                'greenhouse_id' => 1,
+                'greenhouse_id' =>
+                    $greenhouse->id,
                 'type' => 'fan'
             ],
 
             [
                 'name' => 'Kipas',
                 'status' => 'off',
-
-                // 🔥 actuator enum
                 'mode' => 'auto'
             ]
         );
@@ -170,105 +333,130 @@ class DashboardController extends Controller
         $lamp = Actuator::firstOrCreate(
 
             [
-                'greenhouse_id' => 1,
+                'greenhouse_id' =>
+                    $greenhouse->id,
                 'type' => 'lamp'
             ],
 
             [
                 'name' => 'Lampu UV',
                 'status' => 'off',
-
-                // 🔥 actuator enum
                 'mode' => 'auto'
             ]
         );
 
-        // ======================
+        // ======================================================
         // MODE MANUAL
-        // ======================
+        // ======================================================
 
-        if ($mode == 'Manual') {
-
+        if ($mode == 'Manual')
+        {
             $actuators = [
 
                 'pump' => $pump->status,
-
-                'fan'  => $fan->status,
-
+                'fan' => $fan->status,
                 'lamp' => $lamp->status
             ];
         }
 
-        // ======================
+        // ======================================================
         // MODE AUTO
-        // ======================
+        // ======================================================
 
-        else {
+        else
+        {
+            // ======================================================
+            // PUMP
+            // ======================================================
 
-            $pump->update([
+            if (
 
-                'status' => $pumpAuto,
+                $pump->status != $pumpAuto
+                ||
+                $pump->mode != 'auto'
+            ) {
 
-                // 🔥 actuator enum
-                'mode' => 'auto'
-            ]);
+                $pump->update([
+                    'status' => $pumpAuto,
+                    'mode' => 'auto'
+                ]);
+            }
 
-            $fan->update([
+            // ======================================================
+            // FAN
+            // ======================================================
 
-                'status' => $fanAuto,
+            if (
 
-                // 🔥 actuator enum
-                'mode' => 'auto'
-            ]);
+                $fan->status != $fanAuto
+                ||
+                $fan->mode != 'auto'
+            ) {
 
-            $lamp->update([
+                $fan->update([
+                    'status' => $fanAuto,
+                    'mode' => 'auto'
+                ]);
+            }
 
-                'status' => $lampAuto,
+            // ======================================================
+            // LAMP
+            // ======================================================
 
-                // 🔥 actuator enum
-                'mode' => 'auto'
-            ]);
+            if (
+
+                $lamp->status != $lampAuto
+                ||
+                $lamp->mode != 'auto'
+            ) {
+
+                $lamp->update([
+                    'status' => $lampAuto,
+                    'mode' => 'auto'
+                ]);
+            }
+
+            // ======================================================
+            // STATUS
+            // ======================================================
 
             $actuators = [
 
                 'pump' => $pumpAuto,
-
-                'fan'  => $fanAuto,
-
+                'fan' => $fanAuto,
                 'lamp' => $lampAuto
             ];
         }
 
-        // ======================
+        // ======================================================
         // RETURN VIEW
-        // ======================
+        // ======================================================
 
-        return view('dashboard.index', [
+        return view(
 
-            'sensors' => $sensors,
+            'dashboard.index',
 
-            'soil' => $soil,
-            'temp' => $temp,
-            'hum' => $hum,
-            'light' => $light,
+            [
 
-            'soilWeekly' => $soilWeekly,
-
-            'actuators' => $actuators,
-
-            'mode' => $mode,
-
-            'soilMin' => $soilMin,
-            'soilMax' => $soilMax,
-
-            'tempMin' => $tempMin,
-            'tempMax' => $tempMax,
-
-            'humMin' => $humMin,
-            'humMax' => $humMax,
-
-            'lightMin' => $lightMin,
-            'lightMax' => $lightMax
-        ]);
+                'greenhouse' => $greenhouse,
+                'sensors' => $sensors,
+                'soil' => $soil,
+                'temp' => $temp,
+                'hum' => $hum,
+                'light' => $light,
+                'soilWeekly' => $soilWeekly,
+                'weeklyLabels' => $weeklyLabels,
+                'actuators' => $actuators,
+                'mode' => $mode,
+                'soilMin' => $soilMin,
+                'soilMax' => $soilMax,
+                'tempMin' => $tempMin,
+                'tempMax' => $tempMax,
+                'humMin' => $humMin,
+                'humMax' => $humMax,
+                'lightMin' => $lightMin,
+                'lightMax' => $lightMax
+            ]
+        );
     }
 }
