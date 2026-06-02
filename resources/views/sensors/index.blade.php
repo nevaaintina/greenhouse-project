@@ -9,16 +9,6 @@
 
     <div class="flex items-center gap-3">
 
-        <button
-            class="block md:hidden text-forest p-1 focus:outline-none"
-            onclick="toggleSidebar()">
-
-            <span class="material-symbols-rounded text-3xl">
-                menu
-            </span>
-
-        </button>
-
         <div>
 
             <h2 class="text-xl md:text-2xl font-bold text-forest uppercase">

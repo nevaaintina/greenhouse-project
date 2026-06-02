@@ -4,27 +4,23 @@
 
 @section('content')
 
-<!-- ======================================================
-HEADER
-====================================================== -->
+<!-- HEADER -->
+<header class="flex justify-between items-center mb-10">
 
-<header class="flex justify-between items-center mb-10 px-2">
-
-    <!-- LEFT -->
     <div class="flex items-center gap-3">
 
-        <!-- TITLE -->
         <div>
 
             <h2 class="text-xl md:text-2xl font-bold text-forest uppercase">
 
-                System Settings
+                Settings
 
             </h2>
 
-            <p class="text-[10px] text-gray-400 font-bold tracking-widest uppercase mt-1">
+            <p class="text-xs text-gray-400 mt-1">
 
-                Configure Threshold Range Preferences
+                Last Update:
+                {{ now()->format('d M Y H:i') }}
 
             </p>
 
@@ -32,8 +28,8 @@ HEADER
 
     </div>
 
-    <!-- PROFILE -->
-    <div class="flex items-center gap-3 bg-white p-2 px-4 rounded-full shadow border">
+    <a href="/profile"
+    class="flex items-center gap-3 bg-white p-2 px-4 rounded-full shadow border">
 
         <div class="w-8 h-8 bg-forest text-white flex items-center justify-center rounded-full font-bold">
 
@@ -47,9 +43,211 @@ HEADER
 
         </span>
 
-    </div>
+    </a>
 
 </header>
+
+<!-- ======================================================
+SMART GUIDE
+====================================================== -->
+
+<div class="mb-8 bg-gradient-to-br from-green-50 via-white to-emerald-50 border border-green-100 rounded-[2rem] shadow-sm overflow-hidden">
+
+    <!-- HEADER -->
+    <div class="p-6">
+
+        <div class="flex items-center gap-4">
+
+            <div class="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center">
+
+                <span class="material-symbols-rounded text-green-600 text-3xl">
+
+                    auto_awesome
+
+                </span>
+
+            </div>
+
+            <div>
+
+                <h3 class="text-lg font-black text-forest">
+
+                    Smart Automation Guide
+
+                </h3>
+
+                <p class="text-xs text-gray-500 mt-1">
+
+                    Pelajari bagaimana SmartGrow mengambil keputusan secara otomatis berdasarkan data sensor.
+
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- EXPANDABLE -->
+    <details class="border-t border-green-100">
+
+        <summary
+        class="cursor-pointer px-6 py-4 font-bold text-sm text-forest hover:bg-green-50 transition flex items-center justify-between">
+
+            <span>
+
+                📖 Lihat Penjelasan Lengkap
+
+            </span>
+
+        </summary>
+
+        <div class="p-6 pt-2">
+
+            <!-- INTRO -->
+            <div class="bg-white rounded-3xl border border-gray-100 p-5 mb-5">
+
+                <h4 class="font-black text-forest mb-2">
+
+                    Bagaimana Sistem Bekerja?
+
+                </h4>
+
+                <p class="text-sm text-gray-600 leading-relaxed">
+
+                    SmartGrow memantau kondisi greenhouse secara real-time melalui sensor.
+                    Ketika nilai sensor melewati batas yang telah ditentukan,
+                    sistem akan mengambil tindakan otomatis untuk menjaga kondisi tanaman tetap ideal.
+
+                </p>
+
+            </div>
+
+            <!-- RULES -->
+            <div class="grid md:grid-cols-3 gap-4">
+
+                <!-- SOIL -->
+                <div class="bg-white rounded-3xl border border-blue-100 p-5">
+
+                    <div class="flex items-center gap-2 mb-3">
+
+                        <span class="material-symbols-rounded text-blue-500">
+
+                            water_drop
+
+                        </span>
+
+                        <h4 class="font-black text-blue-600">
+
+                            Pompa Air
+
+                        </h4>
+
+                    </div>
+
+                    <p class="text-xs text-gray-600 leading-relaxed">
+
+                        Jika kelembapan tanah turun di bawah nilai minimum,
+                        sistem akan menyalakan pompa air secara otomatis.
+
+                        Setelah kelembapan mencapai nilai maksimum,
+                        pompa akan dimatikan untuk mencegah penyiraman berlebih.
+
+                    </p>
+
+                </div>
+
+                <!-- FAN -->
+                <div class="bg-white rounded-3xl border border-orange-100 p-5">
+
+                    <div class="flex items-center gap-2 mb-3">
+
+                        <span class="material-symbols-rounded text-orange-500">
+
+                            mode_fan
+
+                        </span>
+
+                        <h4 class="font-black text-orange-600">
+
+                            Kipas Pendingin
+
+                        </h4>
+
+                    </div>
+
+                    <p class="text-xs text-gray-600 leading-relaxed">
+
+                        Ketika suhu greenhouse melebihi batas maksimum,
+                        kipas akan menyala untuk membantu menurunkan suhu.
+
+                        Kipas akan berhenti saat suhu kembali ke rentang normal.
+
+                    </p>
+
+                </div>
+
+                <!-- LIGHT -->
+                <div class="bg-white rounded-3xl border border-yellow-100 p-5">
+
+                    <div class="flex items-center gap-2 mb-3">
+
+                        <span class="material-symbols-rounded text-yellow-500">
+
+                            wb_sunny
+
+                        </span>
+
+                        <h4 class="font-black text-yellow-600">
+
+                            Lampu Grow Light
+
+                        </h4>
+
+                    </div>
+
+                    <p class="text-xs text-gray-600 leading-relaxed">
+
+                        Jika intensitas cahaya terlalu rendah,
+                        lampu akan menyala untuk membantu proses fotosintesis.
+
+                        Saat cahaya sudah mencukupi,
+                        lampu akan dimatikan secara otomatis.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+            <!-- NOTE -->
+            <div class="mt-5 bg-amber-50 border border-amber-200 rounded-3xl p-5">
+
+                <h4 class="font-black text-amber-700 mb-2">
+
+                    ⚠️ Penting
+
+                </h4>
+
+                <p class="text-xs text-amber-700 leading-relaxed">
+
+                    Pengaturan batas minimum dan maksimum hanya digunakan saat
+                    <strong>Mode Otomatis</strong> aktif.
+
+                    Jika sistem berada pada
+                    <strong>Mode Manual</strong>,
+                    seluruh aktuator (pompa, kipas, dan lampu)
+                    dikendalikan langsung oleh pengguna melalui dashboard.
+
+                </p>
+
+            </div>
+
+        </div>
+
+    </details>
+
+</div>
 
 
 <!-- ======================================================

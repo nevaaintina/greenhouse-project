@@ -4,36 +4,87 @@ use App\Models\Setting;
 use App\Models\Actuator;
 
 // ======================
+// USER & GREENHOUSE
+// ======================
+
+$user = auth()->user();
+
+$greenhouse = $user?->activeGreenhouse;
+
+// ======================
 // SETTING
 // ======================
 
-$setting = Setting::first();
+$setting = null;
 
-// 🔥 ENUM SETTINGS
-// Manual / Otomatis
+if ($greenhouse)
+{
+    $setting = Setting::where(
 
-$mode = $setting->system_mode ?? 'Otomatis';
+        'greenhouse_id',
+
+        $greenhouse->id
+
+    )->first();
+}
+
+// ======================
+// MODE
+// ======================
+
+$mode =
+
+    $setting?->system_mode
+
+    ?? 'Otomatis';
 
 // ======================
 // ACTUATOR
 // ======================
 
-$actuatorList = Actuator::where(
-    'greenhouse_id',
-    1
-)->get();
+$actuatorList = collect();
 
-// cek actuator nyala
-$isRunning = $actuatorList->contains(function ($a) {
+if ($greenhouse)
+{
+    $actuatorList = Actuator::where(
 
-    return $a->status == 'on';
-});
+        'greenhouse_id',
+
+        $greenhouse->id
+
+    )->get();
+}
+
+// ======================
+// ACTUATOR STATUS
+// ======================
+
+$isRunning = $actuatorList->contains(
+
+    function ($actuator)
+    {
+        return $actuator->status === 'on';
+    }
+);
 
 // ======================
 // ESP STATUS
 // ======================
 
-$espStatus = 'stable';
+$espStatus = 'offline';
+
+if (
+    $greenhouse &&
+    $greenhouse->last_seen &&
+    now()->diffInSeconds(
+
+        $greenhouse->last_seen
+
+    ) <= 60
+)
+{
+    $espStatus = 'online';
+}
 
 @endphp
 
@@ -203,25 +254,39 @@ md:translate-x-0 md:static md:h-auto">
                 </div>
 
             </div>
+<!-- ESP STATUS -->
+<div class="pt-2 border-t border-white/5 flex items-center justify-between text-[9px]">
 
-            <!-- ESP STATUS -->
-            <div class="pt-2 border-t border-white/5 flex items-center justify-between text-[9px]">
+    <span class="opacity-40 text-white italic">
 
-                <span class="opacity-40 text-white italic">
-                    ESP32 Connection
-                </span>
+        ESP32 Connection
 
-                <span class="font-bold uppercase
+    </span>
 
-                    {{ $espStatus == 'stable'
-                        ? 'text-emerald-400/60'
-                        : 'text-red-400' }}">
+    <div class="flex items-center gap-1.5">
 
-                    {{ $espStatus }}
+        <div class="w-2 h-2 rounded-full
 
-                </span>
+            {{ $espStatus == 'online'
+                ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]'
+                : 'bg-red-400'
+            }}">
+        </div>
 
-            </div>
+        <span class="font-bold uppercase
+
+            {{ $espStatus == 'online'
+                ? 'text-emerald-400'
+                : 'text-red-400'
+            }}">
+
+            {{ $espStatus }}
+
+        </span>
+
+    </div>
+
+</div>
 
         </div>
 

@@ -4,36 +4,9 @@
 
 @section('content')
 
-<style>
 
-    @keyframes sway
-    {
-        0% {
-            transform: rotate(0deg);
-        }
-
-        50% {
-            transform: rotate(6deg);
-        }
-
-        100% {
-            transform: rotate(0deg);
-        }
-    }
-
-    .plant-sway
-    {
-        animation: sway 3.5s ease-in-out infinite;
-        transform-origin: bottom center;
-    }
-
-</style>
-
-<!-- =======================================================
-HEADER
-======================================================= -->
-
-<header class="flex justify-between items-center mb-10 px-2">
+<!-- HEADER -->
+<header class="flex justify-between items-center mb-10">
 
     <div class="flex items-center gap-3">
 
@@ -41,13 +14,14 @@ HEADER
 
             <h2 class="text-xl md:text-2xl font-bold text-forest uppercase">
 
-                Administrator Profile
+                 Administrator Profile
 
             </h2>
 
-            <p class="text-[10px] text-gray-400 font-bold tracking-widest uppercase">
+            <p class="text-xs text-gray-400 mt-1">
 
-                Identity & Greenhouse Management
+                Last Update:
+                {{ now()->format('d M Y H:i') }}
 
             </p>
 
@@ -55,21 +29,22 @@ HEADER
 
     </div>
 
-    <div class="flex items-center gap-3 bg-white p-2 px-4 rounded-full shadow-sm border border-gray-100">
+    <a href="/profile"
+    class="flex items-center gap-3 bg-white p-2 px-4 rounded-full shadow border">
 
-        <div class="w-8 h-8 bg-forest text-white flex items-center justify-center rounded-full font-bold text-xs">
+        <div class="w-8 h-8 bg-forest text-white flex items-center justify-center rounded-full font-bold">
 
-            {{ strtoupper(substr($user->name,0,1)) }}
+            {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
 
         </div>
 
         <span class="text-sm font-semibold text-forest hidden sm:block">
 
-            {{ $user->name }}
+            {{ auth()->user()->name }}
 
         </span>
 
-    </div>
+    </a>
 
 </header>
 
@@ -701,9 +676,32 @@ STATS
 
 </div>
 
-<!-- =======================================================
-SCRIPT
-======================================================= -->
+
+
+<style>
+
+    @keyframes sway
+    {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        50% {
+            transform: rotate(6deg);
+        }
+
+        100% {
+            transform: rotate(0deg);
+        }
+    }
+
+    .plant-sway
+    {
+        animation: sway 3.5s ease-in-out infinite;
+        transform-origin: bottom center;
+    }
+
+</style>
 
 <script>
 

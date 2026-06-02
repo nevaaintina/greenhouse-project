@@ -5,26 +5,46 @@
 @section('content')
 
 <!-- HEADER -->
-<header class="flex justify-between items-center mb-10 px-6">
+<header class="flex justify-between items-center mb-10">
+
     <div class="flex items-center gap-3">
+
         <div>
+
             <h2 class="text-xl md:text-2xl font-bold text-forest uppercase">
-                Activity Log
+
+                Logs Activity
+
             </h2>
+
             <p class="text-xs text-gray-400 mt-1">
-                Last Update: {{ now()->format('d M Y H:i') }}
+
+                Last Update:
+                {{ now()->format('d M Y H:i') }}
+
             </p>
+
         </div>
+
     </div>
 
-    <a href="/profile" class="flex items-center gap-3 bg-white p-2 px-4 rounded-full shadow border">
+    <a href="/profile"
+    class="flex items-center gap-3 bg-white p-2 px-4 rounded-full shadow border">
+
         <div class="w-8 h-8 bg-forest text-white flex items-center justify-center rounded-full font-bold">
+
             {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+
         </div>
+
         <span class="text-sm font-semibold text-forest hidden sm:block">
+
             {{ auth()->user()->name }}
+
         </span>
+
     </a>
+
 </header>
 
 <main class="px-6">

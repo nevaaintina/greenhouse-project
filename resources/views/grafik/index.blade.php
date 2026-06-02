@@ -4,18 +4,11 @@
 
 @section('content')
 
-<main class="max-w-7xl mx-auto p-5 md:p-8 text-slate-700">
-
-<!-- =======================================================
-HEADER
-======================================================= -->
-
+<!-- HEADER -->
 <header class="flex justify-between items-center mb-10">
 
-    <!-- LEFT -->
     <div class="flex items-center gap-3">
 
-        <!-- TITLE -->
         <div>
 
             <h2 class="text-xl md:text-2xl font-bold text-forest uppercase">
@@ -35,24 +28,16 @@ HEADER
 
     </div>
 
-    <!-- PROFILE -->
-    <a
-        href="/profile"
+    <a href="/profile"
+    class="flex items-center gap-3 bg-white p-2 px-4 rounded-full shadow border">
 
-        class="flex items-center gap-3 bg-white
-        p-2 px-4 rounded-full shadow border">
-
-        <div
-            class="w-8 h-8 bg-forest text-white
-            flex items-center justify-center
-            rounded-full font-bold">
+        <div class="w-8 h-8 bg-forest text-white flex items-center justify-center rounded-full font-bold">
 
             {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
 
         </div>
 
-        <span
-            class="text-sm font-semibold text-forest hidden sm:block">
+        <span class="text-sm font-semibold text-forest hidden sm:block">
 
             {{ auth()->user()->name }}
 
@@ -61,7 +46,6 @@ HEADER
     </a>
 
 </header>
-
 
 
 <!-- =======================================================
