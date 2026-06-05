@@ -1,87 +1,45 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use App\Models\Actuator;
 use App\Models\Setting;
 use App\Models\Log;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 
 class ControlController extends Controller
 {
     // ======================================================
-    // ESP32 BASE URL
-    // ======================================================
-
-    private $espUrl = 'http://192.168.1.100';
-
-    // ======================================================
     // GET ACTIVE GREENHOUSE
     // ======================================================
-
     private function greenhouse()
     {
         $user = Auth::user()->fresh();
 
-        // ======================================================
-        // VALIDASI USER
-        // ======================================================
-
-        if (!$user)
-        {
+        if (!$user) {
             return null;
         }
-
-        // ======================================================
-        // ACTIVE GREENHOUSE
-        // ======================================================
 
         return $user->activeGreenhouse;
     }
 
     // ======================================================
-    // SEND ESP32 REQUEST
+    // GET USER SETTING (Pola Pull: Mengandalkan Sinkronisasi DB)
     // ======================================================
-
-    private function sendEsp($endpoint)
-    {
-        try {
-            Http::timeout(3)
-                ->retry(1, 200)
-                ->get(
-                    $this->espUrl . $endpoint
-                );
-            return true;
-
-        } catch (\Exception $e) {
-            return false;
-        }
-    }
-
-    // ======================================================
-    // GET USER SETTING
-    // ======================================================
-
     private function setting($greenhouseId)
     {
         return Setting::firstOrCreate(
-
             [
                 'greenhouse_id' => $greenhouseId
             ],
-
             [
                 'system_mode' => 'Otomatis',
-
                 'soil_moisture_min' => 45,
                 'soil_moisture_max' => 70,
-
                 'temperature_min' => 20,
                 'temperature_max' => 28,
-
                 'humidity_min' => 40,
                 'humidity_max' => 80,
-
                 'light_min' => 300,
                 'light_max' => 800
             ]
@@ -91,16 +49,13 @@ class ControlController extends Controller
     // ======================================================
     // GET ACTUATOR
     // ======================================================
-
     private function actuator($greenhouseId, $type)
     {
         return Actuator::firstOrCreate(
-
             [
                 'greenhouse_id' => $greenhouseId,
                 'type' => $type
             ],
-
             [
                 'name' => ucfirst($type),
                 'status' => 'off',
@@ -112,30 +67,15 @@ class ControlController extends Controller
     // ======================================================
     // LOG ACTIVITY
     // ======================================================
-
     private function log($activity, $description)
     {
-        // ======================================================
-        // ACTIVE GREENHOUSE
-        // ======================================================
-
         $greenhouse = $this->greenhouse();
 
-        // ======================================================
-        // VALIDASI
-        // ======================================================
-
-        if (!$greenhouse)
-        {
+        if (!$greenhouse) {
             return;
         }
 
-        // ======================================================
-        // CREATE LOG
-        // ======================================================
-
         Log::create([
-
             'user_id' => auth()->id(),
             'greenhouse_id' => $greenhouse->id,
             'activity' => $activity,
@@ -145,321 +85,148 @@ class ControlController extends Controller
     }
 
     // ======================================================
-    // TOGGLE ACTUATOR
+    // TOGGLE ACTUATOR DENGAN AJAX JSON RESPONSE
     // ======================================================
-
     private function toggle($type)
     {
         $greenhouse = $this->greenhouse();
 
-        if (!$greenhouse)
-        {
-            return back()->with(
-                'error',
-                'Greenhouse aktif tidak ditemukan'
-            );
+        if (!$greenhouse) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Greenhouse aktif tidak ditemukan'
+            ], 404);
         }
 
-        // ======================================================
-        // VALIDASI TYPE
-        // ======================================================
-
-        if (!in_array($type, [
-
-            'pump',
-            'fan',
-            'lamp'
-
-        ])) {
-
-            return back()->with(
-
-                'error',
-                'Actuator tidak valid'
-            );
+        if (!in_array($type, ['pump', 'fan', 'lamp'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Actuator tidak valid'
+            ], 400);
         }
 
-        // ======================================================
-        // USER SETTING
-        // ======================================================
+        $setting = $this->setting($greenhouse->id);
 
-        $setting = $this->setting(
-
-            $greenhouse->id
-        );
-
-        // ======================================================
-        // MODE AUTO
-        // ======================================================
-
-        if ($setting->system_mode === 'Otomatis')
-        {
-            return back()->with(
-                'error',
-                'Mode otomatis sedang aktif'
-            );
+        // Validasi perlindungan agar tidak bisa asal klik saat mode Otomatis berjalan
+        if ($setting->system_mode === 'Otomatis') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mode otomatis sedang aktif! Ubah ke mode manual terlebih dahulu.'
+            ], 422);
         }
 
-        // ======================================================
-        // ACTUATOR
-        // ======================================================
+        $actuator = $this->actuator($greenhouse->id, $type);
 
-        $actuator = $this->actuator(
-            $greenhouse->id,
-            $type
-        );
-
-        // ======================================================
-        // TOGGLE STATUS
-        // ======================================================
-
-        $newStatus =
-            $actuator->status === 'on'
-            ? 'off'
-            : 'on';
+        // Balikkan status lokal database
+        $newStatus = $actuator->status === 'on' ? 'off' : 'on';
 
         $actuator->update([
             'status' => $newStatus,
             'mode' => 'manual'
         ]);
 
-        // ======================================================
-        // SEND ESP
-        // ======================================================
-
-        $espOk = $this->sendEsp(
-            "/{$type}/{$newStatus}"
-        );
-
-        // ======================================================
-        // LOG
-        // ======================================================
-
+        // LOGGING
         $this->log(
             strtoupper($type) . ' CONTROL',
-            ucfirst($type)
-            . ' diubah menjadi '
-            . strtoupper($newStatus)
+            ucfirst($type) . ' diubah menjadi ' . strtoupper($newStatus) . ' melalui Website'
         );
 
-        // ======================================================
-        // RESPONSE
-        // ======================================================
-
-        return back()->with(
-            $espOk ? 'success' : 'warning',
-
-            $espOk
-                ? ucfirst($type) . ' berhasil diubah'
-                : ucfirst($type) . ' berubah lokal, ESP32 tidak merespon'
-        );
+        return response()->json([
+            'success' => true,
+            'message' => ucfirst($type) . ' berhasil diubah ke ' . strtoupper($newStatus),
+            'type' => $type,
+            'status' => $newStatus
+        ]);
     }
 
     // ======================================================
-    // CHANGE MODE
+    // PERBAIKAN SINKRONISASI: CHANGE SYSTEM MODE DENGAN AJAX JSON RESPONSE
     // ======================================================
-
     public function changeMode($mode)
     {
         $greenhouse = $this->greenhouse();
-        if (!$greenhouse)
-        {
-            return back()->with(
-                'error',
-                'Greenhouse aktif tidak ditemukan'
-            );
+        if (!$greenhouse) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Greenhouse aktif tidak ditemukan'
+            ], 404);
         }
 
-        // ======================================================
-        // VALIDASI MODE
-        // ======================================================
-
-        if (!in_array($mode, [
-
-            'Manual',
-            'Otomatis'
-
-        ])) {
-
-            return back()->with(
-                'error',
-                'Mode tidak valid'
-            );
+        if (!in_array($mode, ['Manual', 'Otomatis'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mode tidak valid'
+            ], 400);
         }
 
-        // ======================================================
-        // USER SETTING
-        // ======================================================
-
-        $setting = $this->setting(
-
-            $greenhouse->id
-        );
-
-        // ======================================================
-        // UPDATE MODE
-        // ======================================================
-
+        $setting = $this->setting($greenhouse->id);
         $setting->update([
-
             'system_mode' => $mode
         ]);
 
-        // ======================================================
-        // ACTUATOR TYPES
-        // ======================================================
+        $types = ['pump', 'fan', 'lamp'];
 
-        $types = [
-
-            'pump',
-            'fan',
-            'lamp'
-        ];
-
-        foreach ($types as $type)
-        {
-            $actuator = $this->actuator(
-                $greenhouse->id,
-                $type
-            );
-
+        foreach ($types as $type) {
+            $actuator = $this->actuator($greenhouse->id, $type);
+            
+            // PERBAIKAN: Biarkan 'status' tetap mempertahankan kondisi terakhir dari alat (tidak dipaksa 'off')
+            // untuk mencegah tabrakan data (data override) dari request post sensor ESP32
             $actuator->update([
-                'status' => 'off',
-                'mode' =>
-                    $mode === 'Manual'
-                    ? 'manual'
-                    : 'auto'
+                'mode' => $mode === 'Manual' ? 'manual' : 'auto'
             ]);
-
-            // ======================================================
-            // MODE MANUAL
-            // ======================================================
-
-            if ($mode === 'Manual')
-            {
-                $this->sendEsp(
-                    "/{$type}/off"
-                );
-            }
         }
 
-        // ======================================================
-        // LOG
-        // ======================================================
-
         $this->log(
-
             'MODE CHANGE',
-            'System mode diubah ke '
-            . strtoupper($mode)
+            'System mode berhasil diubah ke ' . strtoupper($mode)
         );
 
-        // ======================================================
-        // RESPONSE
-        // ======================================================
-
-        return back()->with(
-
-            'success',
-            'Mode berhasil diubah ke '
-            . strtoupper($mode)
-        );
+        return response()->json([
+            'success' => true,
+            'message' => 'Mode berhasil diubah ke ' . strtoupper($mode),
+            'mode' => $mode
+        ]);
     }
 
     // ======================================================
-    // RESET NODE
+    // RESET NODE DENGAN AJAX JSON RESPONSE
     // ======================================================
-
     public function resetNode()
     {
         $greenhouse = $this->greenhouse();
 
-        if (!$greenhouse)
-        {
-            return back()->with(
-                'error',
-                'Greenhouse aktif tidak ditemukan'
-            );
+        if (!$greenhouse) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Greenhouse aktif tidak ditemukan'
+            ], 404);
         }
 
-        // ======================================================
-        // RESET ACTUATOR
-        // ======================================================
-
-        Actuator::where(
-
-            'greenhouse_id',
-            $greenhouse->id
-
-        )->update([
-
+        Actuator::where('greenhouse_id', $greenhouse->id)->update([
             'status' => 'off',
             'mode' => 'auto'
         ]);
 
-        // ======================================================
-        // RESET SETTING
-        // ======================================================
-
-        $setting = $this->setting(
-
-            $greenhouse->id
-        );
-
+        $setting = $this->setting($greenhouse->id);
         $setting->update([
-
             'system_mode' => 'Otomatis'
         ]);
 
-        // ======================================================
-        // SEND RESET ESP
-        // ======================================================
-
-        $espOk = $this->sendEsp(
-
-            '/reset'
-        );
-
-        // ======================================================
-        // LOG
-        // ======================================================
-
         $this->log(
-
             'RESET NODE',
-            'Node greenhouse berhasil direset'
+            'Node greenhouse berhasil direset kembali ke default sistem'
         );
 
-        // ======================================================
-        // RESPONSE
-        // ======================================================
-
-        return back()->with(
-
-            $espOk ? 'success' : 'warning',
-
-            $espOk
-                ? 'Node berhasil direset'
-                : 'Reset lokal berhasil, ESP32 tidak merespon'
-        );
+        return response()->json([
+            'success' => true,
+            'message' => 'Node greenhouse berhasil direset ke mode otomatis awal'
+        ]);
     }
 
     // ======================================================
-    // CONTROL BUTTONS
+    // CONTROL BUTTONS MAPPER
     // ======================================================
-
-    public function pump()
-    {
-        return $this->toggle('pump');
-    }
-
-    public function fan()
-    {
-        return $this->toggle('fan');
-    }
-
-    public function lamp()
-    {
-        return $this->toggle('lamp');
-    }
+    public function pump() { return $this->toggle('pump'); }
+    public function fan()  { return $this->toggle('fan'); }
+    public function lamp() { return $this->toggle('lamp'); }
 }

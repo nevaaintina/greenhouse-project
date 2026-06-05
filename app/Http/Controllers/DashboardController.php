@@ -1,462 +1,168 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use App\Models\Sensor;
 use App\Models\SensorData;
 use App\Models\Actuator;
 use App\Models\Setting;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
     // ======================================================
-    // DASHBOARD
+    // DASHBOARD MAIN PAGE (INITIAL LOAD berekstensi HTML/View)
     // ======================================================
-
     public function index()
     {
-        // ======================================================
-        // USER LOGIN
-        // ======================================================
-
         $user = Auth::user();
 
-        // ======================================================
-        // VALIDASI USER
-        // ======================================================
-
-        if (!$user)
-        {
-            return redirect()
-                ->route('login');
+        if (!$user) {
+            return redirect()->route('login');
         }
-
-        // ======================================================
-        // ACTIVE GREENHOUSE
-        // ======================================================
 
         $greenhouse = $user->activeGreenhouse;
 
-        // ======================================================
-        // VALIDASI GREENHOUSE
-        // ======================================================
-
-        if (!$greenhouse)
-        {
-            return back()->with(
-                'error',
-                'Greenhouse aktif tidak ditemukan'
-            );
+        if (!$greenhouse) {
+            return back()->with('error', 'Greenhouse aktif tidak ditemukan');
         }
 
-        // ======================================================
-        // SENSOR USER
-        // ======================================================
+        // 1. Ambil Data Sensor Terakhir (Untuk Rendering Awal Halaman)
+        $sensors = Sensor::with('latestData')
+            ->where('greenhouse_id', $greenhouse->id)
+            ->get();
 
-        $sensors = Sensor::with(
+        $map = $sensors->keyBy('type');
 
-                'latestData'
-
-            )->where(
-
-                'greenhouse_id',
-                $greenhouse->id
-
-            )->get();
-
-        // ======================================================
-        // SENSOR MAP
-        // ======================================================
-
-        $map = $sensors->keyBy(
-            'type'
-        );
-
-        // ======================================================
-        // GET LATEST VALUE
-        // ======================================================
-
-        $getLatest = function ($type) use ($map)
-        {
-            return $map
-                ->get($type)
-                ?->latestData
-                ?->value ?? 0;
+        $getLatest = function ($type) use ($map) {
+            return $map->get($type)?->latestData?->value ?? 0;
         };
 
-        // ======================================================
-        // SENSOR VALUE
-        // ======================================================
+        $soil  = $getLatest('soil');
+        $temp  = $getLatest('temperature');
+        $hum   = $getLatest('humidity');
+        $light = $getLatest('light');
 
-        $soil = $getLatest(
-            'soil'
-        );
-
-        $temp = $getLatest(
-            'temperature'
-        );
-
-        $hum = $getLatest(
-            'humidity'
-        );
-
-        $light = $getLatest(
-            'light'
-        );
-
-        // ======================================================
-        // WEEKLY SOIL CHART
-        // ======================================================
-
+        // 2. Olah Grafik Mingguan Kelembapan Tanah (7 Hari Terakhir)
         $soilWeekly = [];
         $weeklyLabels = [];
 
-        // ======================================================
-        // SOIL SENSOR
-        // ======================================================
-
-        if (isset($map['soil']))
-        {
-            $soilData = SensorData::where(
-
-                    'sensor_id',
-                    $map['soil']->id
-
-                )->whereBetween(
-
-                    'recorded_at',
-
-                    [
-
-                        Carbon::now()
-                            ->subDays(6)
-                            ->startOfDay(),
-
-                        Carbon::now()
-                            ->endOfDay()
-                    ]
-
-                )->latest(
-                    'recorded_at'
-
-                )->take(
-                    500
-
-                )->get()
-
-                ->groupBy(function ($d)
-                {
-                    return Carbon::parse(
-                        $d->recorded_at
-
-                    )->format(
-                        'Y-m-d'
-                    );
+        if (isset($map['soil'])) {
+            $soilData = SensorData::where('sensor_id', $map['soil']->id)
+                ->whereBetween('recorded_at', [
+                    Carbon::now()->subDays(6)->startOfDay(),
+                    Carbon::now()->endOfDay()
+                ])
+                ->latest('recorded_at')
+                ->take(500)
+                ->get()
+                ->groupBy(function ($d) {
+                    return Carbon::parse($d->recorded_at)->format('Y-m-d');
                 });
 
-            // ======================================================
-            // LAST 7 DAYS
-            // ======================================================
-
             $days = collect();
-
-            for ($i = 6; $i >= 0; $i--)
-            {
-                $days->push(
-                    Carbon::now()
-                        ->subDays($i)
-                );
+            for ($i = 6; $i >= 0; $i--) {
+                $days->push(Carbon::now()->subDays($i));
             }
 
-            // ======================================================
-            // BUILD WEEKLY DATA
-            // ======================================================
-
-            foreach (
-
-                $days as $index => $day
-
-            ) {
-
-                // ======================================================
-                // DATE KEY
-                // ======================================================
-
-                $key = $day->format(
-                    'Y-m-d'
-                );
-
-                // ======================================================
-                // LABEL HARI
-                // ======================================================
-
-                $weeklyLabels[] = $day
-
-                    ->translatedFormat('D');
-
-                // ======================================================
-                // WEEKLY VALUE
-                // ======================================================
+            foreach ($days as $index => $day) {
+                $key = $day->format('Y-m-d');
+                $weeklyLabels[] = $day->translatedFormat('D');
 
                 $soilWeekly[$index] = round(
-
-                    optional(
-                        $soilData[$key]
-                        ?? collect()
-
-                    )->avg(
-
-                        'value'
-                    ) ?? 0
+                    optional($soilData->get($key) ?? collect())->avg('value') ?? 0
                 );
             }
         }
 
-        // ======================================================
-        // SETTING
-        // ======================================================
-
+        // 3. Ambil Threshold Pengaturan Atas & Bawah
         $setting = Setting::firstOrCreate(
-
+            ['greenhouse_id' => $greenhouse->id],
             [
-                'greenhouse_id' =>
-                    $greenhouse->id
-            ],
-
-            [
-
-                'system_mode' =>
-                    'Otomatis',
-
-                'soil_moisture_min' => 45,
-                'soil_moisture_max' => 70,
-
-                'temperature_min' => 20,
-                'temperature_max' => 28,
-
-                'humidity_min' => 40,
-                'humidity_max' => 80,
-
-                'light_min' => 300,
-                'light_max' => 800
+                'system_mode' => 'Otomatis',
+                'soil_moisture_min' => 45, 'soil_moisture_max' => 70,
+                'temperature_min' => 20,   'temperature_max' => 28,
+                'humidity_min' => 40,      'humidity_max' => 80,
+                'light_min' => 300,        'light_max' => 800
             ]
         );
 
-        // ======================================================
-        // MODE
-        // ======================================================
+        // 4. Ambil Status Aktuator Terkini
+        $pump = Actuator::firstOrCreate(['greenhouse_id' => $greenhouse->id, 'type' => 'pump'], ['name' => 'Pompa Air', 'status' => 'off', 'mode' => 'auto']);
+        $fan  = Actuator::firstOrCreate(['greenhouse_id' => $greenhouse->id, 'type' => 'fan'],  ['name' => 'Kipas', 'status' => 'off', 'mode' => 'auto']);
+        $lamp = Actuator::firstOrCreate(['greenhouse_id' => $greenhouse->id, 'type' => 'lamp'], ['name' => 'Lampu UV', 'status' => 'off', 'mode' => 'auto']);
 
-        $mode = $setting->system_mode;
+        return view('dashboard.index', [
+            'greenhouse'   => $greenhouse,
+            'sensors'      => $sensors,
+            'soil'         => $soil,
+            'temp'         => $temp,
+            'hum'          => $hum,
+            'light'        => $light,
+            'soilWeekly'   => $soilWeekly,
+            'weeklyLabels' => $weeklyLabels,
+            'actuators'    => ['pump' => $pump->status, 'fan' => $fan->status, 'lamp' => $lamp->status],
+            'mode'         => $setting->system_mode,
+            'soilMin'      => $setting->soil_moisture_min,
+            'soilMax'      => $setting->soil_moisture_max,
+            'tempMin'      => $setting->temperature_min,
+            'tempMax'      => $setting->temperature_max,
+            'humMin'       => $setting->humidity_min,
+            'humMax'       => $setting->humidity_max,
+            'lightMin'     => $setting->light_min,
+            'lightMax'     => $setting->light_max
+        ]);
+    }
 
-        // ======================================================
-        // THRESHOLD
-        // ======================================================
+    // ======================================================
+    // API DATA REAL-TIME PENYUPLAI AJAX POLLING (TERINTEGRASI FULL ACTUATORS STATE)
+    // ======================================================
+    public function realtimeStats()
+    {
+        $user = Auth::user();
 
-        $soilMin =
-            $setting->soil_moisture_min;
-
-        $soilMax =
-            $setting->soil_moisture_max;
-
-        $tempMin =
-            $setting->temperature_min;
-
-        $tempMax =
-            $setting->temperature_max;
-
-        $humMin =
-            $setting->humidity_min;
-
-        $humMax =
-            $setting->humidity_max;
-
-        $lightMin =
-            $setting->light_min;
-
-        $lightMax =
-            $setting->light_max;
-
-        // ======================================================
-        // AUTO STATUS
-        // ======================================================
-
-        $pumpAuto =
-            $soil > 0 && $soil < $soilMin
-            ? 'on'
-            : 'off';
-
-        $fanAuto =
-            $temp > 0 && $temp > $tempMax
-            ? 'on'
-            : 'off';
-
-        $lampAuto =
-            $light > 0 && $light < $lightMin
-            ? 'on'
-            : 'off';
-
-        // ======================================================
-        // ACTUATORS
-        // ======================================================
-
-        $pump = Actuator::firstOrCreate(
-
-            [
-                'greenhouse_id' =>
-                    $greenhouse->id,
-                'type' => 'pump'
-            ],
-
-            [
-                'name' => 'Pompa Air',
-                'status' => 'off',
-                'mode' => 'auto'
-            ]
-        );
-
-        $fan = Actuator::firstOrCreate(
-
-            [
-                'greenhouse_id' =>
-                    $greenhouse->id,
-                'type' => 'fan'
-            ],
-
-            [
-                'name' => 'Kipas',
-                'status' => 'off',
-                'mode' => 'auto'
-            ]
-        );
-
-        $lamp = Actuator::firstOrCreate(
-
-            [
-                'greenhouse_id' =>
-                    $greenhouse->id,
-                'type' => 'lamp'
-            ],
-
-            [
-                'name' => 'Lampu UV',
-                'status' => 'off',
-                'mode' => 'auto'
-            ]
-        );
-
-        // ======================================================
-        // MODE MANUAL
-        // ======================================================
-
-        if ($mode == 'Manual')
-        {
-            $actuators = [
-
-                'pump' => $pump->status,
-                'fan' => $fan->status,
-                'lamp' => $lamp->status
-            ];
+        if (!$user || !$user->activeGreenhouse) {
+            return response()->json(['error' => 'Unauthorized / Greenhouse tidak aktif'], 401);
         }
 
-        // ======================================================
-        // MODE AUTO
-        // ======================================================
+        $greenhouse = $user->activeGreenhouse;
 
-        else
-        {
-            // ======================================================
-            // PUMP
-            // ======================================================
+        // Ambil data sensor terbaru
+        $sensors = Sensor::with('latestData')
+            ->where('greenhouse_id', $greenhouse->id)
+            ->get()
+            ->keyBy('type');
 
-            if (
+        // Ambil stempel log update paling terakhir masuk ke DB (Lengkap data detik)
+        $lastUpdateData = SensorData::whereIn('sensor_id', $sensors->pluck('id'))
+            ->latest('recorded_at')
+            ->first();
 
-                $pump->status != $pumpAuto
-                ||
-                $pump->mode != 'auto'
-            ) {
+        $lastUpdateFormatted = $lastUpdateData 
+            ? Carbon::parse($lastUpdateData->recorded_at)->translatedFormat('d M Y • H:i:s') 
+            : now()->translatedFormat('d M Y • H:i:s');
 
-                $pump->update([
-                    'status' => $pumpAuto,
-                    'mode' => 'auto'
-                ]);
-            }
+        // Ambil status sakelar hardware terkini
+        $pump = Actuator::where('greenhouse_id', $greenhouse->id)->where('type', 'pump')->first();
+        $fan  = Actuator::where('greenhouse_id', $greenhouse->id)->where('type', 'fan')->first();
+        $lamp = Actuator::where('greenhouse_id', $greenhouse->id)->where('type', 'lamp')->first();
+        $setting = Setting::where('greenhouse_id', $greenhouse->id)->first();
 
-            // ======================================================
-            // FAN
-            // ======================================================
-
-            if (
-
-                $fan->status != $fanAuto
-                ||
-                $fan->mode != 'auto'
-            ) {
-
-                $fan->update([
-                    'status' => $fanAuto,
-                    'mode' => 'auto'
-                ]);
-            }
-
-            // ======================================================
-            // LAMP
-            // ======================================================
-
-            if (
-
-                $lamp->status != $lampAuto
-                ||
-                $lamp->mode != 'auto'
-            ) {
-
-                $lamp->update([
-                    'status' => $lampAuto,
-                    'mode' => 'auto'
-                ]);
-            }
-
-            // ======================================================
-            // STATUS
-            // ======================================================
-
-            $actuators = [
-
-                'pump' => $pumpAuto,
-                'fan' => $fanAuto,
-                'lamp' => $lampAuto
-            ];
-        }
-
-        // ======================================================
-        // RETURN VIEW
-        // ======================================================
-
-        return view(
-
-            'dashboard.index',
-
-            [
-
-                'greenhouse' => $greenhouse,
-                'sensors' => $sensors,
-                'soil' => $soil,
-                'temp' => $temp,
-                'hum' => $hum,
-                'light' => $light,
-                'soilWeekly' => $soilWeekly,
-                'weeklyLabels' => $weeklyLabels,
-                'actuators' => $actuators,
-                'mode' => $mode,
-                'soilMin' => $soilMin,
-                'soilMax' => $soilMax,
-                'tempMin' => $tempMin,
-                'tempMax' => $tempMax,
-                'humMin' => $humMin,
-                'humMax' => $humMax,
-                'lightMin' => $lightMin,
-                'lightMax' => $lightMax
+        // Mengembalikan struktur payload JSON utuh yang dinantikan oleh JavaScript Dashboard
+        return response()->json([
+            'soil'        => $sensors->get('soil')?->latestData?->value ?? 0,
+            'temp'        => $sensors->get('temperature')?->latestData?->value ?? 0,
+            'hum'         => $sensors->get('humidity')?->latestData?->value ?? 0,
+            'light'       => $sensors->get('light')?->latestData?->value ?? 0,
+            'mode'        => $setting?->system_mode ?? 'Otomatis',
+            'last_update' => $lastUpdateFormatted,
+            'actuators'   => [
+                'pump' => $pump?->status ?? 'off',
+                'fan'  => $fan?->status ?? 'off',
+                'lamp' => $lamp?->status ?? 'off'
             ]
-        );
+        ]);
     }
 }

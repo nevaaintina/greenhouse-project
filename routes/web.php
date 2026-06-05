@@ -13,153 +13,79 @@ use App\Http\Controllers\ControlController;
 
 /*
 |--------------------------------------------------------------------------
-| AUTH ROUTES
+| DEFAULT REDIRECT
 |--------------------------------------------------------------------------
 */
+Route::get('/', function () {
+    return redirect()->route('login');
+});
 
-Route::middleware('guest')->group(function ()
-{
-    // ======================================================
-    // LOGIN PAGE
-    // ======================================================
-
+/*
+|--------------------------------------------------------------------------
+| AUTH ROUTES (GUEST)
+|--------------------------------------------------------------------------
+*/
+Route::middleware('guest')->group(function () {
+    // Login Page
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-
-    // ======================================================
-    // LOGIN PROCESS
-    // ======================================================
-
+    // Login Process
     Route::post('/login', [AuthController::class, 'login'])->name('login.process');
 });
 
 /*
 |--------------------------------------------------------------------------
-| PROTECTED ROUTES
+| PROTECTED ROUTES (AUTH)
 |--------------------------------------------------------------------------
 */
-
-Route::middleware('auth')->group(function ()
-{
-    // ======================================================
-    // LOGOUT
-    // ======================================================
-
+Route::middleware('auth')->group(function () {
+    
+    // Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-    // ======================================================
-    // DASHBOARD
-    // ======================================================
-
+    // Dashboard & Greenhouse Switcher
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
     Route::post('/greenhouse/switch/{id}', [ProfileController::class, 'switchGreenhouse'])->name('greenhouse.switch');
 
-    // ======================================================
-    // SENSOR
-    // ======================================================
-
+    // Sensor Monitoring
     Route::get('/sensors', [SensorController::class, 'index'])->name('sensors.index');
 
-    // ======================================================
-    // ANALYTICS / GRAFIK
-    // ======================================================
-
+    // Analytics / Grafik & Export PDF
     Route::get('/grafik', [AnalyticsController::class, 'index'])->name('grafik.index');
-
-    // ======================================================
-    // EXPORT PDF
-    // ======================================================
-
     Route::get('/grafik/export', [AnalyticsController::class, 'exportPdf'])->name('grafik.export');
+    
+    // PERBAIKAN REAL-TIME: Rute pendukung AJAX data real-time untuk halaman Grafik Analitik
+    Route::get('/grafik/realtime', [AnalyticsController::class, 'realtimeAnalytics'])->name('grafik.realtime');
 
-    // ======================================================
-    // LOGS
-    // ======================================================
-
+    // System Log Activities
     Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
 
-    // ======================================================
-    // SETTINGS
-    // ======================================================
-
+    // Dynamic Threshold Settings
     Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
     Route::post('/settings/update', [SettingController::class, 'update'])->name('settings.update');
 
-    // ======================================================
-    // CONTROL ACTUATOR
-    // ======================================================
-
-    Route::prefix('control')->group(function ()
-    {
-        // ======================================================
-        // PUMP
-        // ======================================================
-
+    // Control Actuator (Manual Target Mode)
+    Route::prefix('control')->group(function () {
         Route::post('/pump', [ControlController::class, 'pump'])->name('control.pump');
-
-        // ======================================================
-        // FAN
-        // ======================================================
-
         Route::post('/fan', [ControlController::class, 'fan'])->name('control.fan');
-
-        // ======================================================
-        // LAMP
-        // ======================================================
-
         Route::post('/lamp', [ControlController::class, 'lamp'])->name('control.lamp');
     });
 
-    // ======================================================
-    // CHANGE MODE
-    // ======================================================
+    // Change System Mode (Disinkronkan menjadi {mode} agar sesuai variabel Controller)
+    Route::post('/mode/{mode}', [ControlController::class, 'changeMode'])->name('control.mode');
 
-    Route::post('/mode/{type}', [ControlController::class, 'changeMode'])->name('control.mode');
-
-    // ======================================================
-    // RESET NODE
-    // ======================================================
-
+    // Reset Node Hardware System
     Route::post('/reset-node', [ControlController::class, 'resetNode'])->name('control.reset');
 
-    // ======================================================
-    // PROFILE
-    // ======================================================
-
-    Route::prefix('profile')->group(function ()
-    {
-        // ======================================================
-        // PROFILE PAGE
-        // ======================================================
-
+    // User Profile Management
+    Route::prefix('profile')->group(function () {
         Route::get('/', [ProfileController::class, 'index'])->name('profile');
-
-        // ======================================================
-        // EDIT PROFILE
-        // ======================================================
-
         Route::get('/edit', [ProfileController::class, 'edit'])->name('profile.edit');
-
-        // ======================================================
-        // UPDATE PROFILE
-        // ======================================================
-
         Route::put('/update', [ProfileController::class, 'update'])->name('profile.update');
     });
 
-    // ======================================================
-    // REALTIME STATS
-    // ======================================================
-
-    Route::get('/stats/realtime', [ProfileController::class, 'realtimeStats'])->name('stats.realtime');
-});
-
-/*
-|--------------------------------------------------------------------------
-| DEFAULT REDIRECT
-|--------------------------------------------------------------------------
-*/
-
-Route::get('/', function ()
-{
-    return redirect()->route('login');
+    // ==========================================================================
+    // PERBAIKAN SELESAI: Dialihkan kembali ke DashboardController agar membawa 
+    // muatan array 'actuators' utuh demi kestabilan kontrol manual & otomatis
+    // ==========================================================================
+    Route::get('/stats/realtime', [DashboardController::class, 'realtimeStats'])->name('stats.realtime');
 });

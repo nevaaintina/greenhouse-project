@@ -5,446 +5,100 @@
 @section('content')
 
 @php
+// =========================================================================
+// PERBAIKAN MUTLAK INITIAL LOAD: Membaca status string 'on' / 'off' langsung dari DB
+// Mencegah komponen melompat kembali ke visual default saat halaman di-refresh (F5)
+// =========================================================================
+$pumpStatus = ($actuators['pump'] ?? 'off') === 'on';
+$fanStatus  = ($actuators['fan'] ?? 'off') === 'on';
+$lampStatus = ($actuators['lamp'] ?? 'off') === 'on';
 
-// =========================
-// AUTO STATUS
-// =========================
+if ($soil < $soilMin) { $soilStatus = 'Kering'; } 
+elseif ($soil <= $soilMax) { $soilStatus = 'Ideal'; } 
+else { $soilStatus = 'Basah'; }
 
-// 🌱 SOIL
-if ($soil < $soilMin) {
+if ($temp > $tempMax) { $tempStatus = 'Overheat'; } 
+elseif ($temp >= $tempMin) { $tempStatus = 'Stable'; } 
+else { $tempStatus = 'Cold'; }
 
-    $soilStatus = 'Kering';
-
-    $pumpAuto = 'on';
-
-} elseif ($soil <= $soilMax) {
-
-    $soilStatus = 'Ideal';
-
-    $pumpAuto = 'off';
-
-} else {
-
-    $soilStatus = 'Basah';
-
-    $pumpAuto = 'off';
-}
-
-// 🌡️ TEMPERATURE
-if ($temp > $tempMax) {
-
-    $tempStatus = 'Overheat';
-
-    $fanAuto = 'on';
-
-} elseif ($temp >= $tempMin) {
-
-    $tempStatus = 'Stable';
-
-    $fanAuto = 'off';
-
-} else {
-
-    $tempStatus = 'Cold';
-
-    $fanAuto = 'off';
-}
-
-// 💡 LIGHT
-if ($light < $lightMin) {
-
-    $lightStatus = 'Low';
-
-    $lampAuto = 'on';
-
-} elseif ($light <= $lightMax) {
-
-    $lightStatus = 'Good';
-
-    $lampAuto = 'off';
-
-} else {
-
-    $lightStatus = 'High';
-
-    $lampAuto = 'off';
-}
-
-// =========================
-// PRIORITAS MODE
-// =========================
-
-if ($mode == 'Manual') {
-
-    $pumpStatus =
-        ($actuators['pump'] ?? 'off') == 'on';
-
-    $fanStatus =
-        ($actuators['fan'] ?? 'off') == 'on';
-
-    $lampStatus =
-        ($actuators['lamp'] ?? 'off') == 'on';
-
-} else {
-
-    $pumpStatus =
-        $pumpAuto == 'on';
-
-    $fanStatus =
-        $fanAuto == 'on';
-
-    $lampStatus =
-        $lampAuto == 'on';
-}
-
+if ($light < $lightMin) { $lightStatus = 'Low'; } 
+elseif ($light <= $lightMax) { $lightStatus = 'Good'; } 
+else { $lightStatus = 'High'; }
 @endphp
 
-<!-- HEADER -->
 <header class="flex justify-between items-center mb-10">
-
-    <div class="flex items-center gap-3">
-
-        <div>
-
-            <h2 class="text-xl md:text-2xl font-bold text-forest uppercase">
-
-                Greenhouse Overview
-
-            </h2>
-
-            <p class="text-xs text-gray-400 mt-1">
-
-                Last Update:
-                {{ now()->format('d M Y H:i') }}
-
-            </p>
-
-        </div>
-
+    <div>
+        <h2 class="text-xl md:text-2xl font-bold text-forest uppercase tracking-wide">
+            Greenhouse Overview
+        </h2>
+        <p class="text-xs text-gray-400 mt-1">
+            Last Update: <span id="textLastUpdate">{{ now()->format('d M Y H:i:s') }}</span>
+        </p>
     </div>
 
-    <a href="/profile"
-    class="flex items-center gap-3 bg-white p-2 px-4 rounded-full shadow border">
-
+    <a href="/profile" class="flex items-center gap-3 bg-white p-2 px-4 rounded-full shadow border hover:bg-gray-50 transition">
         <div class="w-8 h-8 bg-forest text-white flex items-center justify-center rounded-full font-bold">
-
             {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
-
         </div>
-
         <span class="text-sm font-semibold text-forest hidden sm:block">
-
             {{ auth()->user()->name }}
-
         </span>
-
     </a>
-
 </header>
 
-{{-- =======================================================
-NOTIFICATION ALERT
-======================================================= --}}
+<div id="alertContainer" class="mb-6 space-y-4"></div>
 
-@if(
-
-    (
-
-        $soil > 0 &&
-
-        (
-            $soil < $soilMin ||
-            $soil > $soilMax
-        )
-    )
-
-    ||
-
-    (
-
-        $temp > 0 &&
-
-        (
-            $temp < $tempMin ||
-            $temp > $tempMax
-        )
-    )
-
-    ||
-
-    (
-
-        $light > 0 &&
-
-        (
-            $light < $lightMin ||
-            $light > $lightMax
-        )
-    )
-
-    ||
-
-    (
-
-        $hum > 0 &&
-
-        (
-            $hum < $humMin ||
-            $hum > $humMax
-        )
-    )
-)
-
-<div class="mb-6 space-y-4">
-
-    {{-- =======================================================
-    SOIL ALERT
-    ======================================================= --}}
-
-    @if(
-
-        $soil > 0 &&
-
-        (
-            $soil < $soilMin ||
-            $soil > $soilMax
-        )
-    )
-
-    <div class="bg-red-50 border border-red-100 rounded-3xl p-5 flex items-start gap-4 shadow-sm">
-
-        <div class="w-12 h-12 rounded-2xl bg-red-100 text-red-500 flex items-center justify-center flex-shrink-0">
-
-            <span class="material-symbols-rounded">
-                water_drop
-            </span>
-
-        </div>
-
-        <div class="flex-1">
-
-            <h4 class="font-bold text-red-600 text-sm uppercase">
-                Soil Moisture Warning
-            </h4>
-
-            <p class="text-sm text-red-500 mt-1">
-
-                {{ $soil < $soilMin
-                    ? 'Kelembapan tanah terlalu rendah'
-                    : 'Kelembapan tanah terlalu tinggi' }}
-
-                ({{ $soil }}%)
-
-            </p>
-
-        </div>
-
-    </div>
-
-    @endif
-
-
-    {{-- =======================================================
-    TEMPERATURE ALERT
-    ======================================================= --}}
-
-    @if(
-
-        $temp > 0 &&
-
-        (
-            $temp < $tempMin ||
-            $temp > $tempMax
-        )
-    )
-
-    <div class="bg-orange-50 border border-orange-100 rounded-3xl p-5 flex items-start gap-4 shadow-sm">
-
-        <div class="w-12 h-12 rounded-2xl bg-orange-100 text-orange-500 flex items-center justify-center flex-shrink-0">
-
-            <span class="material-symbols-rounded">
-                device_thermostat
-            </span>
-
-        </div>
-
-        <div class="flex-1">
-
-            <h4 class="font-bold text-orange-600 text-sm uppercase">
-                Temperature Warning
-            </h4>
-
-            <p class="text-sm text-orange-500 mt-1">
-
-                {{ $temp > $tempMax
-                    ? 'Suhu greenhouse terlalu tinggi'
-                    : 'Suhu greenhouse terlalu rendah' }}
-
-                ({{ $temp }}°C)
-
-            </p>
-
-        </div>
-
-    </div>
-
-    @endif
-
-
-    {{-- =======================================================
-    HUMIDITY ALERT
-    ======================================================= --}}
-
-    @if(
-
-        $hum > 0 &&
-
-        (
-            $hum < $humMin ||
-            $hum > $humMax
-        )
-    )
-
-    <div class="bg-cyan-50 border border-cyan-100 rounded-3xl p-5 flex items-start gap-4 shadow-sm">
-
-        <div class="w-12 h-12 rounded-2xl bg-cyan-100 text-cyan-500 flex items-center justify-center flex-shrink-0">
-
-            <span class="material-symbols-rounded">
-                humidity_mid
-            </span>
-
-        </div>
-
-        <div class="flex-1">
-
-            <h4 class="font-bold text-cyan-600 text-sm uppercase">
-                Humidity Warning
-            </h4>
-
-            <p class="text-sm text-cyan-500 mt-1">
-
-                {{ $hum > $humMax
-                    ? 'Kelembapan udara terlalu tinggi'
-                    : 'Kelembapan udara terlalu rendah' }}
-
-                ({{ $hum }}%)
-
-            </p>
-
-        </div>
-
-    </div>
-
-    @endif
-
-
-    {{-- =======================================================
-    LIGHT ALERT
-    ======================================================= --}}
-
-    @if(
-
-        $light > 0 &&
-
-        (
-            $light < $lightMin ||
-            $light > $lightMax
-        )
-    )
-
-    <div class="bg-yellow-50 border border-yellow-100 rounded-3xl p-5 flex items-start gap-4 shadow-sm">
-
-        <div class="w-12 h-12 rounded-2xl bg-yellow-100 text-yellow-500 flex items-center justify-center flex-shrink-0">
-
-            <span class="material-symbols-rounded">
-                wb_sunny
-            </span>
-
-        </div>
-
-        <div class="flex-1">
-
-            <h4 class="font-bold text-yellow-600 text-sm uppercase">
-                Light Warning
-            </h4>
-
-            <p class="text-sm text-yellow-500 mt-1">
-
-                {{ $light > $lightMax
-                    ? 'Intensitas cahaya terlalu tinggi'
-                    : 'Intensitas cahaya terlalu rendah' }}
-
-                ({{ $light }} Lux)
-
-            </p>
-
-        </div>
-
-    </div>
-
-    @endif
-
-</div>
-
-@endif
-
-
-<!-- SENSOR CARD SECTION -->
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-
-    <!-- 🌊 SOIL MOISTURE (Circular Liquid Gauge) -->
+    {{-- Card Kelembapan Tanah --}}
     <div class="bg-white/80 p-5 rounded-3xl shadow flex flex-col items-center relative overflow-hidden group border border-transparent hover:border-blue-200 transition-all">
         <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Kelembapan Tanah</p>
         <div class="relative w-28 h-28 rounded-full border-4 border-gray-100 shadow-inner flex items-center justify-center bg-gray-50 overflow-hidden">
-            <div class="absolute bottom-0 w-full bg-gradient-to-t from-blue-600 to-blue-400 transition-all duration-1000" style="height: {{ $soil }}%">
+            <div id="soilWaveVisual" class="absolute bottom-0 w-full bg-gradient-to-t from-blue-600 to-blue-400 transition-all duration-1000" style="height: {{ $soil }}%">
                 <div class="absolute -top-4 left-0 w-[200%] h-5 bg-white/20 rounded-[40%] animate-wave"></div>
             </div>
             <div class="relative z-10 text-center">
-                <h3 class="text-3xl font-black {{ $soil > 50 ? 'text-white' : 'text-forest' }}">{{ $soil }}<span class="text-sm">%</span></h3>
+                <h3 class="text-3xl font-black text-forest"><span id="textSoilCard">{{ $soil }}</span><span class="text-sm">%</span></h3>
             </div>
         </div>
         <div class="mt-4 flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full {{ $soil < 30 ? 'bg-red-500 animate-pulse' : 'bg-blue-500' }}"></span>
-            <p class="text-[11px] font-bold text-gray-600 uppercase">{{ $soil < 45 ? 'Kering' : 'Ideal' }}</p>
+            <span id="dotSoilCard" class="w-2 h-2 rounded-full {{ $soil < $soilMin ? 'bg-red-500 animate-pulse' : 'bg-blue-500' }}"></span>
+            <p id="statusSoilCard" class="text-[11px] font-bold text-gray-600 uppercase">{{ $soilStatus }}</p>
         </div>
     </div>
 
-    <!-- 🌡️ TEMPERATURE (With Side Red Bar Indication) -->
+    {{-- Card Suhu Udara --}}
     <div class="bg-white/80 p-5 rounded-3xl shadow flex flex-col items-center relative group border border-transparent hover:border-orange-200 transition-all">
         <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Suhu Udara</p>
         <div class="relative w-28 h-28 flex items-center justify-center rounded-full bg-gray-50 border-4 border-gray-100">
             <span class="material-symbols-rounded absolute text-6xl text-orange-100 opacity-70">device_thermostat</span>
-            
             <div class="flex items-center gap-2 z-10">
-                <div class="w-1 h-8 rounded-full transition-all duration-500 {{ $temp > 30 ? 'bg-red-500 animate-pulse opacity-100' : 'bg-gray-200 opacity-30' }}"></div>
+                <div id="barTempVisual" class="w-1 h-8 rounded-full transition-all duration-500 {{ $temp > $tempMax ? 'bg-red-500 animate-pulse opacity-100' : 'bg-gray-200 opacity-30' }}"></div>
                 <div class="text-center">
-                    <h3 class="text-3xl font-black text-gray-800 leading-none">{{ $temp }}<span class="text-sm text-gray-400">°C</span></h3>
+                    <h3 class="text-3xl font-black text-gray-800 leading-none"><span id="textTempCard">{{ $temp }}</span><span class="text-sm text-gray-400">°C</span></h3>
                 </div>
             </div>
         </div>
-        <span class="text-[10px] font-bold {{ $temp > 30 ? 'text-red-500 animate-pulse' : 'text-green-600' }} uppercase mt-4">
-            {{ $temp > 28 ? 'Overheat' : 'Stable' }}
+        <span id="statusTempCard" class="text-[10px] font-bold {{ $temp > $tempMax ? 'text-red-500 animate-pulse' : 'text-green-600' }} uppercase mt-4">
+            {{ $tempStatus }}
         </span>
     </div>
 
-    <!-- 💧 HUMIDITY (Animated Mist Icon) -->
+    {{-- Card Kelembapan Udara --}}
     <div class="bg-white/80 p-5 rounded-3xl shadow flex flex-col items-center relative group border border-transparent hover:border-emerald-200 transition-all">
         <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Kelembapan Udara</p>
         <div class="relative w-28 h-28 flex items-center justify-center rounded-full bg-gray-50 border-4 border-gray-100 overflow-hidden">
             <div class="absolute w-20 h-20 bg-emerald-400/20 rounded-full blur-xl animate-pulse"></div>
-            
             <div class="absolute inset-0 flex items-center justify-center animate-float">
                 <span class="material-symbols-rounded text-6xl text-emerald-100 opacity-80">air</span>
             </div>
-            
             <div class="text-center z-10">
-                <h3 class="text-3xl font-black text-gray-800 leading-none">{{ $hum }}<span class="text-sm text-gray-400">%</span></h3>
+                <h3 class="text-3xl font-black text-gray-800 leading-none"><span id="textHumCard">{{ $hum }}</span><span class="text-sm text-gray-400">%</span></h3>
             </div>
         </div>
         <span class="text-[10px] font-bold text-emerald-600 uppercase mt-4">Optimal Air</span>
     </div>
 
-    <!-- ☀️ LIGHT (Sunshine Radial Style) -->
+    {{-- Card Intensitas Cahaya --}}
     <div class="bg-white/80 p-5 rounded-3xl shadow flex flex-col items-center relative group border border-transparent hover:border-yellow-200 transition-all">
         <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Intensitas Cahaya</p>
         <div class="relative w-28 h-28 flex items-center justify-center">
@@ -452,1197 +106,482 @@ NOTIFICATION ALERT
             <div class="absolute inset-0 border-2 border-dashed border-yellow-200 rounded-full animate-spin-slow" style="animation-duration: 10s"></div>
         </div>
         <div class="text-center mt-2">
-            <h3 class="text-xl font-black text-gray-800">{{ $light }} <span class="text-[10px] text-gray-400 uppercase tracking-tighter">Lux</span></h3>
-            <p class="text-[9px] font-black text-yellow-700 uppercase bg-yellow-100 px-2 py-0.5 rounded-full mt-1">{{ $light < 300 ? 'Low' : 'Good' }}</p>
+            <h3 class="text-xl font-black text-gray-800"><span id="textLightCard">{{ $light }}</span> <span class="text-[10px] text-gray-400 uppercase tracking-tighter">Lux</span></h3>
+            <p id="statusLightCard" class="text-[9px] font-black text-yellow-700 uppercase bg-yellow-100 px-2 py-0.5 rounded-full mt-1">{{ $lightStatus }}</p>
         </div>
     </div>
 
-   @php
-
-// =========================
-// WEATHER CONDITION
-// =========================
-
-if ($temp >= 32) {
-
-    $weatherIcon = 'wb_sunny';
-    $weatherText = 'Panas';
-    $weatherColor = 'text-yellow-500';
-    $weatherBg = 'from-yellow-50 to-white';
-    $rainProb = '5%';
-
-} elseif ($temp >= 26) {
-
-    $weatherIcon = 'partly_cloudy_day';
-    $weatherText = 'Cerah';
-    $weatherColor = 'text-blue-400';
-    $weatherBg = 'from-blue-50 to-white';
-    $rainProb = '10%';
-
-} elseif ($temp >= 20) {
-
-    $weatherIcon = 'cloud';
-    $weatherText = 'Berawan';
-    $weatherColor = 'text-gray-400';
-    $weatherBg = 'from-gray-50 to-white';
-    $rainProb = '35%';
-
-} else {
-
-    $weatherIcon = 'thunderstorm';
-    $weatherText = 'Hujan';
-    $weatherColor = 'text-indigo-500';
-    $weatherBg = 'from-indigo-50 to-white';
-    $rainProb = '80%';
-}
-
-@endphp
-
-<!-- ☁️ WEATHER -->
-<div class="bg-gradient-to-br {{ $weatherBg }}
-    p-5 rounded-3xl shadow flex flex-col items-center justify-center
-    relative border border-transparent hover:border-blue-100 transition-all">
-
-    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">
-
-        Cuaca Lokal
-
-    </p>
-
-    <div class="flex flex-col items-center gap-1">
-
-        <span class="material-symbols-rounded text-5xl
-            {{ $weatherColor }} animate-bounce">
-
-            {{ $weatherIcon }}
-
-        </span>
-
-        <div class="text-center">
-
-            <h3 class="text-lg font-black text-gray-800 leading-tight">
-
-                {{ $weatherText }}
-
-            </h3>
-
-            <p class="text-[10px] text-gray-400 font-bold uppercase">
-                
-            {{ now()->translatedFormat('l, d F Y') }}
-
-            </p>
-
+    {{-- Weather Widget --}}
+    <div id="weatherWidgetBg" class="bg-gradient-to-br from-blue-50 to-white p-5 rounded-3xl shadow flex flex-col items-center justify-center relative border border-transparent hover:border-blue-100 transition-all">
+        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Cuaca Lokal</p>
+        <div class="flex flex-col items-center gap-1">
+            <span id="weatherWidgetIcon" class="material-symbols-rounded text-5xl text-blue-400 animate-bounce">partly_cloudy_day</span>
+            <div class="text-center">
+                <h3 id="weatherWidgetText" class="text-lg font-black text-gray-800 leading-tight">Cerah</h3>
+                <p class="text-[10px] text-gray-400 font-bold uppercase">{{ now()->translatedFormat('l, d F Y') }}</p>
+            </div>
         </div>
-
+        <p class="text-[10px] font-bold uppercase mt-4 text-blue-400">Probabilitas Hujan: <span id="weatherWidgetRain">10%</span></p>
     </div>
-
-    <p class="text-[10px] font-bold uppercase mt-4
-        {{ $weatherColor }}">
-
-        Probabilitas Hujan: {{ $rainProb }}
-
-    </p>
-
 </div>
 
-</div>
-
-
-<!-- LIVE ECOSYSTEM -->
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-
-    <!-- LIVE ECOSYSTEM -->
+    {{-- Live Ecosystem Component --}}
     <div class="lg:col-span-2 bg-white p-8 rounded-3xl shadow flex items-center gap-8">
-
         <div class="w-40 h-40 relative">
-
             <svg viewBox="0 0 200 200" class="animate-bounce-slow">
-
-                <path d="M40,160 L160,160 L160,80 L100,30 L40,80 Z"
-                    fill="none"
-                    stroke="#2D5A27"
-                    stroke-width="4"/>
-
-                <path d="M80,160 Q80,120 100,120 Q120,120 120,160"
-                    fill="{{ $soil > 60 ? '#2E7D32' : '#A16207' }}" />
-
-                <circle cx="100" cy="110" r="15"
-                    fill="#facc15"
-                    class="opacity-20 animate-pulse" />
-
-                <circle cx="100" cy="110" r="8"
-                    fill="{{ $light < 300 ? '#facc15' : '#4ADE80' }}"
-                    class="{{ $light < 300 ? 'animate-pulse' : '' }}" />
-
+                <path d="M40,160 L160,160 L160,80 L100,30 L40,80 Z" fill="none" stroke="#2D5A27" stroke-width="4"/>
+                <path id="svgEcosystemPump" d="M80,160 Q80,120 100,120 Q120,120 120,160" fill="{{ $pumpStatus ? '#34d399' : '#A16207' }}" />
+                <circle id="svgEcosystemLightGlow" cx="100" cy="110" r="15" fill="#facc15" class="opacity-20 {{ $lampStatus ? 'animate-pulse' : 'hidden' }}" />
+                <circle id="svgEcosystemLightCore" cx="100" cy="110" r="8" fill="{{ $lampStatus ? '#facc15' : '#e2e8f0' }}" />
             </svg>
-
         </div>
 
         <div>
-
-            <h4 class="font-bold text-forest text-lg">
-                Live Ecosystem
-            </h4>
-
-            <div class="flex flex-wrap gap-3 mt-3">
-
-                <!-- PUMP -->
-                <span class="bg-green-100 text-green-700 px-3 py-1 rounded text-[10px] font-bold flex items-center gap-1">
-
-                    <span class="material-symbols-rounded text-sm">
-                        water_drop
-                    </span>
-
-                    Pompa:
-                    {{ ($actuators['pump'] ?? 'off') == 'on' ? 'ON' : 'OFF' }}
-
+            <h4 class="font-bold text-forest text-lg">Live Ecosystem Component</h4>
+            <p class="text-xs text-gray-400 mt-0.5 mb-3">Kondisi riil komponen maket di lapangan</p>
+            <div class="flex flex-wrap gap-3">
+                {{-- PERBAIKAN INITIAL BLADE STYLE --}}
+                <span id="ecoBadgePump" class="{{ $pumpStatus ? 'bg-green-100 text-green-700 ring-2 ring-green-400/20' : 'bg-gray-100 text-gray-500' }} px-3 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1.5 transition-all">
+                    <span id="ecoIconPump" class="material-symbols-rounded text-sm {{ $pumpStatus ? 'animate-bounce' : '' }}">water_drop</span>
+                    Pompa: <span id="ecoTextPump">{{ $pumpStatus ? 'ON' : 'OFF' }}</span>
                 </span>
 
-                <!-- LAMP -->
-                <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded text-[10px] font-bold flex items-center gap-1">
-
-                    <span class="material-symbols-rounded text-sm">
-                        lightbulb
-                    </span>
-
-                    Lampu:
-                    {{ ($actuators['lamp'] ?? 'off') == 'on' ? 'ON' : 'OFF' }}
-
+                <span id="ecoBadgeLamp" class="{{ $lampStatus ? 'bg-yellow-100 text-yellow-700 ring-2 ring-yellow-400/20' : 'bg-gray-100 text-gray-500' }} px-3 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1.5 transition-all">
+                    <span id="ecoIconLamp" class="material-symbols-rounded text-sm {{ $lampStatus ? 'animate-pulse' : '' }}">lightbulb</span>
+                    Lampu UV: <span id="ecoTextLamp">{{ $lampStatus ? 'ON' : 'OFF' }}</span>
                 </span>
 
-                <!-- FAN -->
-                <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold flex items-center gap-1">
-
-                    <span class="material-symbols-rounded text-sm animate-spin-slow">
-                        mode_fan
-                    </span>
-
-                    Kipas:
-                    {{ ($actuators['fan'] ?? 'off') == 'on' ? 'ON' : 'OFF' }}
-
+                <span id="ecoBadgeFan" class="{{ $fanStatus ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-400/20' : 'bg-gray-100 text-gray-500' }} px-3 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1.5 transition-all">
+                    <span id="ecoIconFan" class="material-symbols-rounded text-sm {{ $fanStatus ? 'animate-spin-slow' : '' }}">mode_fan</span>
+                    Kipas: <span id="ecoTextFan">{{ $fanStatus ? 'ON' : 'OFF' }}</span>
                 </span>
-
             </div>
-
         </div>
-
     </div>
 
-    <!-- CONTROL MODE -->
+    {{-- Panel Mode Operasional --}}
     <div class="bg-white p-6 rounded-3xl shadow flex flex-col items-center justify-center">
+        <button type="button" onclick="openResetModal()" class="w-full bg-forest text-white p-5 rounded-2xl font-bold hover:scale-95 transition shadow-lg flex items-center justify-center gap-2">
+            <span class="material-symbols-rounded">restart_alt</span>
+            RESET NODE
+        </button>
 
-        <form action="/reset-node" method="POST">
-    @csrf
-
-    <!-- RESET NODE -->
-<button
-    type="button"
-
-    onclick="openResetModal()"
-
-    class="w-full bg-forest text-white p-5 rounded-2xl
-    font-bold hover:scale-95 transition shadow-lg
-    flex items-center justify-center gap-2">
-
-    <span class="material-symbols-rounded">
-        restart_alt
-    </span>
-
-    RESET NODE
-
-</button>
-
-<!-- =========================
-RESET MODAL
-========================= -->
-
-<div id="resetModal"
-class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[999]
-hidden items-center justify-center p-4">
-
-    <div
-        class="bg-white w-full max-w-md rounded-3xl
-        shadow-2xl overflow-hidden animate-modal">
-
-        <!-- HEADER -->
-        <div class="p-6 text-center border-b border-gray-100">
-
-            <div class="w-16 h-16 mx-auto rounded-full
-                bg-red-100 flex items-center justify-center mb-4">
-
-                <span class="material-symbols-rounded text-4xl text-red-500">
-                    warning
-                </span>
-
-            </div>
-
-            <h3
-                class="text-xl font-black text-red-500 uppercase">
-
-                Reset Node
-
-            </h3>
-
-            <p
-                class="text-sm text-gray-500 mt-2 leading-relaxed">
-
-                Semua actuator akan dimatikan dan sistem
-                kembali ke mode otomatis.
-
-            </p>
-
-        </div>
-
-        <!-- FOOTER -->
-        <div class="grid grid-cols-2 gap-3 p-5 bg-gray-50">
-
-            <!-- CANCEL -->
-            <button
-                onclick="closeResetModal()"
-
-                class="py-3 rounded-2xl border border-gray-200
-                text-gray-500 font-bold hover:bg-gray-100 transition">
-
-                Batal
-
-            </button>
-
-            <!-- CONFIRM -->
-            <button
-                onclick="submitResetNode()"
-
-                class="py-3 rounded-2xl bg-red-500 text-white
-                font-black hover:scale-95 transition">
-
-                Ya, Reset
-
-            </button>
-
-        </div>
-
-    </div>
-
-</div>
-</form>
-
-        <!-- MODE -->
         <div class="mt-4 w-full space-y-2">
-
-            <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">
-
-                Operation Mode
-
-            </p>
-
+            <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Operation Mode</p>
             <div class="flex gap-2 w-full">
+                <button id="btnModeManual" type="button" onclick="openConfirmModal('/mode/Manual', 'MODE MANUAL', 'Kontrol actuator akan dialihkan sepenuhnya ke kontrol manual website.')" 
+                    class="flex-1 py-2 rounded-xl text-[10px] font-bold border-2 transition flex items-center justify-center gap-1
+                    {{ $mode === 'Manual' ? 'bg-forest text-white border-forest' : 'bg-white text-forest border-forest hover:bg-forest hover:text-white' }}">
+                    <span class="material-symbols-rounded text-sm">handyman</span>
+                    MANUAL
+                </button>
 
-    <!-- MANUAL -->
-    <button
-        type="button"
-
-        onclick="openConfirmModal(
-            '/mode/Manual',
-            'MODE MANUAL',
-            'Kontrol actuator akan dilakukan secara manual.'
-        )"
-
-        class="flex-1 py-2 rounded-xl text-[10px] font-bold border-2 transition
-        flex items-center justify-center gap-1
-
-        {{ $mode == 'Manual'
-            ? 'bg-forest text-white border-forest'
-            : 'bg-white text-forest border-forest hover:bg-forest hover:text-white' }}">
-
-        <span class="material-symbols-rounded text-sm">
-            handyman
-        </span>
-
-        MANUAL
-
-    </button>
-
-    <!-- AUTO -->
-    <button
-        type="button"
-
-        onclick="openConfirmModal(
-            '/mode/Otomatis',
-            'MODE OTOMATIS',
-            'Actuator akan berjalan otomatis sesuai threshold settings.'
-        )"
-
-        class="flex-1 py-2 rounded-xl text-[10px] font-bold border-2 transition
-        flex items-center justify-center gap-1
-
-        {{ $mode == 'Otomatis'
-            ? 'bg-forest text-white border-forest'
-            : 'bg-white text-forest border-forest hover:bg-forest hover:text-white' }}">
-
-        <span class="material-symbols-rounded text-sm">
-            auto_mode
-        </span>
-
-        OTOMATIS
-
-    </button>
-
+                <button id="btnModeOtomatis" type="button" onclick="openConfirmModal('/mode/Otomatis', 'MODE KONTROL OTOMATIS', 'Sistem akan dikembalikan ke kendali pintar otomatis berbasis threshold.')" 
+                    class="flex-1 py-2 rounded-xl text-[10px] font-bold border-2 transition flex items-center justify-center gap-1
+                    {{ $mode === 'Otomatis' ? 'bg-forest text-white border-forest' : 'bg-white text-forest border-forest hover:bg-forest hover:text-white' }}">
+                    <span class="material-symbols-rounded text-sm">auto_mode</span>
+                    OTOMATIS
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
-<!-- =========================
-CONFIRM MODAL
-========================= -->
+<div class="flex flex-col lg:flex-row gap-6 items-start mb-8">
+    {{-- Panel Kontrol Sakelar Manual --}}
+    <div class="w-full lg:w-[32%] bg-white p-6 rounded-3xl shadow flex flex-col gap-4">
+        <h4 class="text-xs font-bold text-gray-400 uppercase">Manual Target Control</h4>
+        
+        {{-- Sakelar Pompa --}}
+        <div class="space-y-2">
+            <div class="flex justify-between items-center bg-gray-50 p-4 rounded-xl">
+                <span class="flex items-center gap-2 text-sm font-medium">
+                    <span id="btnIconPump" class="material-symbols-rounded text-blue-500 {{ $pumpStatus ? 'animate-bounce' : '' }}">water_drop</span>
+                    Pompa Air
+                </span>
+                <div id="switchBgPump" class="w-10 h-5 rounded-full flex items-center px-1 transition-colors duration-300 {{ $pumpStatus ? 'bg-green-500' : 'bg-gray-300' }}">
+                    <div id="switchDotPump" class="w-3 h-3 bg-white rounded-full transition-all duration-300 {{ $pumpStatus ? 'transform translate-x-5' : '' }}"></div>
+                </div>
+            </div>
+            <button id="btnActionPump" type="button" onclick="openControlModal('/control/pump', '{{ $pumpStatus ? 'Matikan Pompa Air' : 'Nyalakan Pompa Air' }}', 'Apakah anda yakin ingin merubah status pompa air?')"
+                class="w-full border border-forest text-forest py-3 rounded-xl hover:bg-forest hover:text-white transition text-sm font-semibold {{ $mode === 'Otomatis' ? 'opacity-40 cursor-not-allowed' : '' }}"
+                {{ $mode === 'Otomatis' ? 'disabled' : '' }}>
+                {{ $pumpStatus ? 'MATIKAN POMPA' : 'SIRAM SEKARANG' }}
+            </button>
+        </div>
 
-<div id="confirmModal"
-class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[999]
-hidden items-center justify-center p-4">
+        {{-- Sakelar Kipas --}}
+        <div class="space-y-2">
+            <div class="flex justify-between items-center bg-gray-50 p-4 rounded-xl">
+                <span class="flex items-center gap-2 text-sm font-medium">
+                    <span id="btnIconFan" class="material-symbols-rounded text-emerald-500 {{ $fanStatus ? 'animate-spin-slow' : '' }}">mode_fan</span>
+                    Kipas
+                </span>
+                <div id="switchBgFan" class="w-10 h-5 rounded-full flex items-center px-1 transition-colors duration-300 {{ $fanStatus ? 'bg-blue-500' : 'bg-gray-300' }}">
+                    <div id="switchDotFan" class="w-3 h-3 bg-white rounded-full transition-all duration-300 {{ $fanStatus ? 'transform translate-x-5' : '' }}"></div>
+                </div>
+            </div>
+            <button id="btnActionFan" type="button" onclick="openControlModal('/control/fan', '{{ $fanStatus ? 'Matikan Kipas' : 'Nyalakan Kipas' }}', 'Apakah anda yakin ingin mengubah status operasional kipas?')"
+                class="w-full border border-forest text-forest py-3 rounded-xl hover:bg-forest hover:text-white transition text-sm font-semibold {{ $mode === 'Otomatis' ? 'opacity-40 cursor-not-allowed' : '' }}"
+                {{ $mode === 'Otomatis' ? 'disabled' : '' }}>
+                {{ $fanStatus ? 'MATIKAN KIPAS' : 'NYALAKAN KIPAS' }}
+            </button>
+        </div>
 
-    <div
-        class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-modal">
+        {{-- Sakelar Lampu UV --}}
+        <div class="space-y-2">
+            <div class="flex justify-between items-center bg-gray-50 p-4 rounded-xl">
+                <span class="flex items-center gap-2 text-sm font-medium">
+                    <span id="btnIconLamp" class="material-symbols-rounded text-yellow-500 {{ $lampStatus ? 'animate-pulse' : '' }}">lightbulb</span>
+                    Lampu UV
+                </span>
+                <div id="switchBgLamp" class="w-10 h-5 rounded-full flex items-center px-1 transition-colors duration-300 {{ $lampStatus ? 'bg-yellow-500' : 'bg-gray-300' }}">
+                    <div id="switchDotLamp" class="w-3 h-3 bg-white rounded-full transition-all duration-300 {{ $lampStatus ? 'transform translate-x-5' : '' }}"></div>
+                </div>
+            </div>
+            <button id="btnActionLamp" type="button" onclick="openControlModal('/control/lamp', '{{ $lampStatus ? 'Matikan Lampu UV' : 'Nyalakan Lampu UV' }}', 'Apakah anda yakin ingin mengubah status pencahayaan lampu UV?')"
+                class="w-full border border-forest text-forest py-3 rounded-xl hover:bg-forest hover:text-white transition text-sm font-semibold {{ $mode === 'Otomatis' ? 'opacity-40 cursor-not-allowed' : '' }}"
+                {{ $mode === 'Otomatis' ? 'disabled' : '' }}>
+                {{ $lampStatus ? 'MATIKAN LAMPU' : 'NYALAKAN LAMPU' }}
+            </button>
+        </div>
+    </div>
 
-        <!-- HEADER -->
+    {{-- Chart Analisis --}}
+    <div class="flex-1 w-full bg-white p-6 rounded-3xl shadow">
+        <div class="flex justify-between items-center mb-6">
+            <h4 class="font-bold text-forest">Moisture Weekly Analysis</h4>
+            <div class="flex gap-2">
+                <span class="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase">
+                    <div class="w-2 h-2 bg-red-400 rounded-sm"></div> Kering
+                </span>
+                <span class="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase">
+                    <div class="w-2 h-2 bg-blue-500 rounded-sm"></div> Ideal
+                </span>
+            </div>
+        </div>
+        <div class="h-64">
+            <canvas id="soilHeatmapChart"></canvas>
+        </div>
+    </div>
+</div>
+
+{{-- MODALS CONFIG --}}
+<div id="resetModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[999] hidden items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-modal">
         <div class="p-6 text-center border-b border-gray-100">
-
-            <div class="w-16 h-16 mx-auto rounded-full
-                bg-forest/10 flex items-center justify-center mb-4">
-
-                <span class="material-symbols-rounded text-4xl text-forest">
-                    settings
-                </span>
-
+            <div class="w-16 h-16 mx-auto rounded-full bg-red-100 flex items-center justify-center mb-4">
+                <span class="material-symbols-rounded text-4xl text-red-500">warning</span>
             </div>
-
-            <h3 id="confirmTitle"
-                class="text-xl font-black text-forest uppercase">
-
-                Ubah Mode
-
-            </h3>
-
-            <p id="confirmText"
-                class="text-sm text-gray-500 mt-2 leading-relaxed">
-
-                Yakin ingin mengubah mode sistem?
-
-            </p>
-
+            <h3 class="text-xl font-black text-red-500 uppercase">Reset Node Hardware</h3>
+            <p class="text-sm text-gray-500 mt-2 leading-relaxed"> Semua aktuator fisik di lapangan akan dinonaktifkan sementara dan sistem dikembalikan penuh ke mode otomatis.</p>
         </div>
-
-        <!-- FOOTER -->
         <div class="grid grid-cols-2 gap-3 p-5 bg-gray-50">
-
-            <!-- CANCEL -->
-            <button
-                onclick="closeConfirmModal()"
-
-                class="py-3 rounded-2xl border border-gray-200
-                text-gray-500 font-bold hover:bg-gray-100 transition">
-
-                Batal
-
-            </button>
-
-            <!-- CONFIRM -->
-            <button
-                id="confirmActionBtn"
-
-                class="py-3 rounded-2xl bg-forest text-white
-                font-black hover:scale-95 transition">
-
-                Ya, Ubah
-
-            </button>
-                        </div>
-            </div>
-            </div>
+            <button onclick="closeResetModal()" class="py-3 rounded-2xl border border-gray-200 text-gray-500 font-bold hover:bg-gray-100 transition">Batal</button>
+            <button onclick="submitResetNode()" class="py-3 rounded-2xl bg-red-500 text-white font-black hover:scale-95 transition">Ya, Reset Node</button>
         </div>
-
-        <div class="mt-4 opacity-30 animate-bounce-slow">
-
-            <span class="material-symbols-rounded text-6xl text-forest">
-                potted_plant
-            </span>
-
-        </div>
-
     </div>
-
 </div>
 
-
-<!-- CONTROL + HEATMAP STYLE ANALYSIS -->
-<div class="flex flex-row gap-6 items-start">
-
-<!-- =========================
-MANUAL CONTROL
-========================= -->
-
-<div class="w-[32%] bg-white p-6 rounded-3xl shadow flex flex-col gap-4">
-
-    <h4 class="text-xs font-bold text-gray-400 uppercase">
-        Manual Control
-    </h4>
-
-    <!-- =========================
-    PUMP
-    ========================= -->
-
-    <div class="space-y-2">
-
-        <!-- CARD -->
-        <div class="flex justify-between items-center bg-gray-50 p-4 rounded-xl">
-
-            <span class="flex items-center gap-2 text-sm font-medium">
-
-                <span class="material-symbols-rounded text-green-600 animate-bounce">
-                    water
-                </span>
-
-                Pompa Air
-
-            </span>
-
-            <!-- SWITCH -->
-            <div class="w-10 h-5 rounded-full flex items-center px-1
-
-                {{ $pumpStatus
-                    ? 'bg-green-500'
-                    : 'bg-gray-300' }}">
-
-                <div class="w-3 h-3 bg-white rounded-full
-
-                    {{ $pumpStatus
-                        ? 'ml-auto animate-pulse'
-                        : '' }}">
-                </div>
-
-            </div>
-
-        </div>
-
-        <!-- BUTTON -->
-        <button
-            type="button"
-
-            onclick="openControlModal(
-                '/control/pump',
-
-                '{{ $pumpStatus
-                    ? 'Matikan Pompa Air'
-                    : 'Pompa Air' }}',
-
-                '{{ $pumpStatus
-                    ? 'Matikan pompa air sekarang?'
-                    : 'Aktifkan pompa air sekarang?' }}'
-            )"
-
-            class="w-full border border-forest text-forest py-3 rounded-xl
-            hover:bg-forest hover:text-white transition text-sm font-semibold
-
-            {{ $mode == 'Otomatis'
-                ? 'opacity-50 cursor-not-allowed'
-                : '' }}"
-
-            {{ $mode == 'Otomatis'
-                ? 'disabled'
-                : '' }}>
-
-            {{ $pumpStatus
-                ? 'MATIKAN POMPA'
-                : 'SIRAM SEKARANG' }}
-
-        </button>
-
-    </div>
-
-
-    <!-- =========================
-    FAN
-    ========================= -->
-
-    <div class="space-y-2">
-
-        <div class="flex justify-between items-center bg-gray-50 p-4 rounded-xl">
-
-            <span class="flex items-center gap-2 text-sm font-medium">
-
-                <span class="material-symbols-rounded text-blue-500 animate-spin-slow">
-                    mode_fan
-                </span>
-
-                Kipas
-
-            </span>
-
-            <div class="w-10 h-5 rounded-full flex items-center px-1
-
-                {{ $fanStatus
-                    ? 'bg-blue-500'
-                    : 'bg-gray-300' }}">
-
-                <div class="w-3 h-3 bg-white rounded-full
-
-                    {{ $fanStatus
-                        ? 'ml-auto'
-                        : '' }}">
-                </div>
-
-            </div>
-
-        </div>
-
-        <button
-            type="button"
-
-            onclick="openControlModal(
-                '/control/fan',
-
-                '{{ $fanStatus
-                    ? 'Matikan Kipas'
-                    : 'Kipas' }}',
-
-                '{{ $fanStatus
-                    ? 'Matikan kipas greenhouse?'
-                    : 'Nyalakan kipas greenhouse?' }}'
-            )"
-
-            class="w-full border border-forest text-forest py-3 rounded-xl
-            hover:bg-forest hover:text-white transition text-sm font-semibold
-
-            {{ $mode == 'Otomatis'
-                ? 'opacity-50 cursor-not-allowed'
-                : '' }}"
-
-            {{ $mode == 'Otomatis'
-                ? 'disabled'
-                : '' }}>
-
-            {{ $fanStatus
-                ? 'MATIKAN KIPAS'
-                : 'NYALAKAN KIPAS' }}
-
-        </button>
-
-    </div>
-
-
-    <!-- =========================
-    LAMP
-    ========================= -->
-
-    <div class="space-y-2">
-
-        <div class="flex justify-between items-center bg-gray-50 p-4 rounded-xl">
-
-            <span class="flex items-center gap-2 text-sm font-medium">
-
-                <span class="material-symbols-rounded text-yellow-500 animate-pulse">
-                    lightbulb
-                </span>
-
-                Lampu UV
-
-            </span>
-
-            <div class="w-10 h-5 rounded-full flex items-center px-1
-
-                {{ $lampStatus
-                    ? 'bg-yellow-500'
-                    : 'bg-gray-300' }}">
-
-                <div class="w-3 h-3 bg-white rounded-full
-
-                    {{ $lampStatus
-                        ? 'ml-auto'
-                        : '' }}">
-                </div>
-
-            </div>
-
-        </div>
-
-        <button
-            type="button"
-
-            onclick="openControlModal(
-                '/control/lamp',
-
-                '{{ $lampStatus
-                    ? 'Matikan Lampu UV'
-                    : 'Lampu UV' }}',
-
-                '{{ $lampStatus
-                    ? 'Matikan lampu UV greenhouse?'
-                    : 'Aktifkan lampu UV greenhouse?' }}'
-            )"
-
-            class="w-full border border-forest text-forest py-3 rounded-xl
-            hover:bg-forest hover:text-white transition text-sm font-semibold
-
-            {{ $mode == 'Otomatis'
-                ? 'opacity-50 cursor-not-allowed'
-                : '' }}"
-
-            {{ $mode == 'Otomatis'
-                ? 'disabled'
-                : '' }}>
-
-            {{ $lampStatus
-                ? 'MATIKAN LAMPU'
-                : 'NYALAKAN LAMPU' }}
-
-        </button>
-
-    </div>
-
-</div>
-
-
-<!-- =========================
-HEATMAP
-========================= -->
-
-<div class="flex-1 bg-white p-6 rounded-3xl shadow">
-
-    <div class="flex justify-between items-center mb-6">
-
-        <h4 class="font-bold text-forest">
-            Moisture Weekly Analysis
-        </h4>
-
-        <div class="flex gap-2">
-
-            <span class="flex items-center gap-1 text-[9px]
-                font-bold text-gray-400 uppercase">
-
-                <div class="w-2 h-2 bg-red-400 rounded-sm"></div>
-
-                Kering
-
-            </span>
-
-            <span class="flex items-center gap-1 text-[9px]
-                font-bold text-gray-400 uppercase">
-
-                <div class="w-2 h-2 bg-blue-500 rounded-sm"></div>
-
-                Ideal
-
-            </span>
-
-        </div>
-
-    </div>
-
-    <div class="h-64">
-
-        <canvas id="soilHeatmapChart"></canvas>
-
-    </div>
-
-</div>
-
-</div>
-
-
-<!-- =========================
-CONTROL MODAL
-========================= -->
-
-<div id="controlModal"
-class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[999]
-hidden items-center justify-center p-4">
-
-    <div
-        class="bg-white w-full max-w-md rounded-3xl
-        shadow-2xl overflow-hidden animate-modal">
-
-        <!-- HEADER -->
+<div id="confirmModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[999] hidden items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-modal">
         <div class="p-6 text-center border-b border-gray-100">
-
-            <div class="w-16 h-16 mx-auto rounded-full
-                bg-forest/10 flex items-center justify-center mb-4">
-
-                <span class="material-symbols-rounded text-4xl text-forest">
-                    tune
-                </span>
-
+            <div class="w-16 h-16 mx-auto rounded-full bg-forest/10 flex items-center justify-center mb-4">
+                <span class="material-symbols-rounded text-4xl text-forest">settings</span>
             </div>
-
-            <h3
-                id="controlTitle"
-                class="text-xl font-black text-forest uppercase">
-
-                Manual Control
-
-            </h3>
-
-            <p
-                id="controlText"
-                class="text-sm text-gray-500 mt-2 leading-relaxed">
-
-                Yakin ingin menjalankan actuator?
-
-            </p>
-
+            <h3 id="confirmTitle" class="text-xl font-black text-forest uppercase">Ubah Mode</h3>
+            <p id="confirmText" class="text-sm text-gray-500 mt-2 leading-relaxed">Yakin ingin mengubah skema manajemen operasional alat?</p>
         </div>
-
-        <!-- FOOTER -->
         <div class="grid grid-cols-2 gap-3 p-5 bg-gray-50">
-
-            <!-- CANCEL -->
-            <button
-                onclick="closeControlModal()"
-
-                class="py-3 rounded-2xl border border-gray-200
-                text-gray-500 font-bold hover:bg-gray-100 transition">
-
-                Batal
-
-            </button>
-
-            <!-- CONFIRM -->
-            <button
-                id="controlActionBtn"
-
-                class="py-3 rounded-2xl bg-forest text-white
-                font-black hover:scale-95 transition">
-
-                Ya, Jalankan
-
-            </button>
-
+            <button onclick="closeConfirmModal()" class="py-3 rounded-2xl border border-gray-200 text-gray-500 font-bold hover:bg-gray-100 transition">Batal</button>
+            <button id="confirmActionBtn" class="py-3 rounded-2xl bg-forest text-white font-black hover:scale-95 transition">Ya, Konfirmasi</button>
         </div>
-
     </div>
-
 </div>
 
-<!-- =======================================================
-SMARTGROW DASHBOARD SCRIPTS
-Control Modal • Mode Modal • Reset Modal • Chart • Animation
-======================================================= -->
-
-<!-- =======================================================
-CHART.JS
-======================================================= -->
+<div id="controlModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[999] hidden items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-modal">
+        <div class="p-6 text-center border-b border-gray-100">
+            <div class="w-16 h-16 mx-auto rounded-full bg-forest/10 flex items-center justify-center mb-4">
+                <span class="material-symbols-rounded text-4xl text-forest">tune</span>
+            </div>
+            <h3 id="controlTitle" class="text-xl font-black text-forest uppercase">Manual Control</h3>
+            <p id="controlText" class="text-sm text-gray-500 mt-2 leading-relaxed">Yakin ingin merubah siklus nyala hardware terpilih?</p>
+        </div>
+        <div class="grid grid-cols-2 gap-3 p-5 bg-gray-50">
+            <button onclick="closeControlModal()" class="py-3 rounded-2xl border border-gray-200 text-gray-500 font-bold hover:bg-gray-100 transition">Batal</button>
+            <button id="controlActionBtn" class="py-3 rounded-2xl bg-forest text-white font-black hover:scale-95 transition">Ya, Eksekusi</button>
+        </div>
+    </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-
-<!-- =======================================================
-MAIN SCRIPT
-======================================================= -->
-
 <script>
+const config = {
+    soilMin: {{ $soilMin }}, soilMax: {{ $soilMax }},
+    tempMin: {{ $tempMin }}, tempMax: {{ $tempMax }},
+    humMin:  {{ $humMin }},  humMax:  {{ $humMax }},
+    lightMin:{{ $lightMin }},lightMax:{{ $lightMax }}
+};
 
-//
-// =======================================================
-// CONTROL MODAL
-// Manual actuator confirmation
-// =======================================================
-//
+async function fetchRealtimeStats() {
+    try {
+        const response = await fetch('{{ route("stats.realtime") }}');
+        if (!response.ok) return;
+        const data = await response.json();
 
-function openControlModal(url, title, text)
-{
-    const modal =
-        document.getElementById('controlModal');
+        document.getElementById('textSoilCard').innerText = data.soil;
+        document.getElementById('textTempCard').innerText = data.temp;
+        document.getElementById('textHumCard').innerText  = data.hum;
+        document.getElementById('textLightCard').innerText = data.light;
+        document.getElementById('textLastUpdate').innerText = data.last_update || new Date().toLocaleTimeString('id-ID');
 
-    document.getElementById('controlTitle').innerText =
-        title;
+        document.getElementById('soilWaveVisual').style.height = data.soil + '%';
 
-    document.getElementById('controlText').innerText =
-        text;
+        updateCardStatus('Soil', data.soil, data.soil < config.soilMin, data.soil < config.soilMin ? 'Kering' : 'Ideal', 'bg-blue-500', 'bg-red-500');
+        updateCardStatus('Temp', data.temp, data.temp > config.tempMax, data.temp > config.tempMax ? 'Overheat' : 'Stable', 'text-green-600', 'text-red-500');
+        
+        const barTemp = document.getElementById('barTempVisual');
+        if (data.temp > config.tempMax) {
+            barTemp.className = "w-1 h-8 rounded-full bg-red-500 animate-pulse opacity-100";
+        } else {
+            barTemp.className = "w-1 h-8 rounded-full bg-gray-200 opacity-30";
+        }
 
-    document.getElementById('controlActionBtn').onclick =
-        function ()
-    {
-        submitPostForm(url);
-    };
+        renderNotificationAlerts(data);
+        updateModeUI(data.mode);
 
-    modal.classList.remove('hidden');
+        // SYNC DATA REALTIME BADGE & SAKELAR
+        updateActuatorUI('Pump', data.actuators.pump === 'on', '#34d399', '#A16207', 'bg-green-100 text-green-700 ring-2 ring-green-400/20', 'animate-bounce', 'water_drop', 'SIRAM SEKARANG', 'MATIKAN POMPA');
+        updateActuatorUI('Fan',  data.actuators.fan === 'on',  '#60a5fa', '#e2e8f0', 'bg-blue-100 text-blue-700 ring-2 ring-blue-400/20', 'animate-spin-slow', 'mode_fan', 'NYALAKAN KIPAS', 'MATIKAN KIPAS');
+        updateActuatorUI('Lamp', data.actuators.lamp === 'on', '#facc15', '#e2e8f0', 'bg-yellow-100 text-yellow-700 ring-2 ring-yellow-400/20', 'animate-pulse', 'lightbulb', 'NYALAKAN LAMPU', 'MATIKAN LAMPU');
 
-    modal.classList.add('flex');
+        updateLocalWeatherWidget(data.temp);
+
+    } catch (err) {
+        console.error("AJAX Polling Error: ", err);
+    }
 }
 
-function closeControlModal()
-{
-    const modal =
-        document.getElementById('controlModal');
-
-    modal.classList.add('hidden');
-
-    modal.classList.remove('flex');
+function updateCardStatus(type, val, isAlert, text, normalClass, alertClass) {
+    const txtEl = document.getElementById(`status${type}Card`);
+    const dotEl = document.getElementById(`dot${type}Card`);
+    if(txtEl) txtEl.innerText = text;
+    if(dotEl) dotEl.className = `w-2 h-2 rounded-full ${isAlert ? alertClass + ' animate-pulse' : normalClass}`;
 }
 
+function updateModeUI(mode) {
+    const manualBtn = document.getElementById('btnModeManual');
+    const autoBtn = document.getElementById('btnModeOtomatis');
+    
+    const activeClass = "flex-1 py-2 rounded-xl text-[10px] font-bold border-2 transition flex items-center justify-center gap-1 bg-forest text-white border-forest";
+    const inactiveClass = "flex-1 py-2 rounded-xl text-[10px] font-bold border-2 transition flex items-center justify-center gap-1 bg-white text-forest border-forest hover:bg-forest hover:text-white";
 
-
-//
-// =======================================================
-// MODE MODAL
-// Change Manual / Auto mode
-// =======================================================
-//
-
-function openConfirmModal(url, title, text)
-{
-    const modal =
-        document.getElementById('confirmModal');
-
-    document.getElementById('confirmTitle').innerText =
-        title;
-
-    document.getElementById('confirmText').innerText =
-        text;
-
-    document.getElementById('confirmActionBtn').onclick =
-        function ()
-    {
-        submitPostForm(url);
-    };
-
-    modal.classList.remove('hidden');
-
-    modal.classList.add('flex');
+    if (mode === 'Manual') {
+        manualBtn.className = activeClass; autoBtn.className = inactiveClass;
+        ['Pump', 'Fan', 'Lamp'].forEach(act => {
+            const btn = document.getElementById(`btnAction${act}`);
+            btn.className = "w-full border border-forest text-forest py-3 rounded-xl hover:bg-forest hover:text-white transition text-sm font-semibold";
+            btn.removeAttribute('disabled');
+        });
+    } else {
+        manualBtn.className = inactiveClass; autoBtn.className = activeClass;
+        ['Pump', 'Fan', 'Lamp'].forEach(act => {
+            const btn = document.getElementById(`btnAction${act}`);
+            btn.className = "w-full border border-forest text-forest py-3 rounded-xl hover:bg-forest hover:text-white transition text-sm font-semibold opacity-40 cursor-not-allowed";
+            btn.setAttribute('disabled', 'true');
+        });
+    }
 }
 
-function closeConfirmModal()
-{
-    const modal =
-        document.getElementById('confirmModal');
+// PERBAIKAN TOTAL SINKRONISASI BADGE ECOSYSTEM DAN WARNA SAKELAR
+function updateActuatorUI(name, isOn, svgOnColor, svgOffColor, badgeOnClass, animClass, iconName, textOff, textOn) {
+    const svgLayer = document.getElementById(`svgEcosystem${name}`);
+    if (svgLayer) svgLayer.setAttribute('fill', isOn ? svgOnColor : svgOffColor);
+    
+    if (name === 'Lamp') {
+        const glow = document.getElementById('svgEcosystemLightGlow');
+        const core = document.getElementById('svgEcosystemLightCore');
+        if(glow) glow.className.baseVal = isOn ? 'opacity-20 animate-pulse' : 'hidden';
+        if(core) core.setAttribute('fill', isOn ? '#facc15' : '#e2e8f0');
+    }
 
-    modal.classList.add('hidden');
+    const badge = document.getElementById(`ecoBadge${name}`);
+    const text  = document.getElementById(`ecoText${name}`);
+    const icon  = document.getElementById(`ecoIcon${name}`);
+    
+    // =========================================================================
+    // KUNCI UTAMA STYLING BADGE: Ukuran font dikunci 'text-[10px] font-bold' baik saat ON maupun OFF
+    // =========================================================================
+    if (badge) {
+        badge.className = isOn 
+            ? `${badgeOnClass} px-3 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1.5 transition-all`
+            : 'bg-gray-100 text-gray-500 px-3 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1.5 transition-all';
+    }
+    if (text) text.innerText = isOn ? 'ON' : 'OFF';
+    if (icon) icon.className = `material-symbols-rounded text-sm ${isOn ? animClass : ''}`;
 
-    modal.classList.remove('flex');
+    const switchBg  = document.getElementById(`switchBg${name}`);
+    const switchDot = document.getElementById(`switchDot${name}`);
+    const btnAction = document.getElementById(`btnAction${name}`);
+    const btnIcon   = document.getElementById(`btnIcon${name}`);
+
+    if (switchBg)  switchBg.className = `w-10 h-5 rounded-full flex items-center px-1 transition-colors duration-300 ${isOn ? 'bg-green-500' : 'bg-gray-300'}`;
+    if (switchDot) switchDot.className = `w-3 h-3 bg-white rounded-full transition-all duration-300 ${isOn ? 'transform translate-x-5' : ''}`;
+    
+    if (btnAction) {
+        btnAction.innerText = isOn ? textOn : textOff;
+        btnAction.className = isOn 
+            ? "w-full border border-red-500 text-red-500 py-3 rounded-xl hover:bg-red-500 hover:text-white transition text-sm font-semibold"
+            : "w-full border border-forest text-forest py-3 rounded-xl hover:bg-forest hover:text-white transition text-sm font-semibold";
+    }
+    
+    // PERBAIKAN UTK WARNA IKON TARGET MANUAL: Konsisten warna cerah (Biru, Hijau, Kuning) dengan tambahan animasi saat ON
+    if (btnIcon) {
+        let baseIconColor = "text-blue-500";
+        if (name === 'Fan') baseIconColor = "text-emerald-500";
+        if (name === 'Lamp') baseIconColor = "text-yellow-500";
+        
+        btnIcon.className = `material-symbols-rounded ${baseIconColor} ${isOn ? animClass : ''}`;
+    }
 }
 
-
-
-//
-// =======================================================
-// RESET NODE MODAL
-// Restart greenhouse node system
-// =======================================================
-//
-
-function openResetModal()
-{
-    const modal =
-        document.getElementById('resetModal');
-
-    modal.classList.remove('hidden');
-
-    modal.classList.add('flex');
+function renderNotificationAlerts(data) {
+    const container = document.getElementById('alertContainer');
+    let html = '';
+    if (data.soil > 0 && (data.soil < config.soilMin || data.soil > config.soilMax)) {
+        html += `<div class="bg-red-50 border border-red-100 rounded-3xl p-5 flex items-start gap-4 shadow-sm animate-pulse"><div class="w-12 h-12 rounded-2xl bg-red-100 text-red-500 flex items-center justify-center flex-shrink-0"><span class="material-symbols-rounded">water_drop</span></div><div class="flex-1"><h4 class="font-bold text-red-600 text-sm uppercase">Soil Moisture Warning</h4><p class="text-sm text-red-500 mt-1">${data.soil < config.soilMin ? 'Kelembapan tanah terlalu rendah (Butuh Penyiraman)' : 'Kelembapan tanah terlalu tinggi'} (${data.soil}%)</p></div></div>`;
+    }
+    if (data.temp > 0 && (data.temp < config.tempMin || data.temp > config.tempMax)) {
+        html += `<div class="bg-orange-50 border border-orange-100 rounded-3xl p-5 flex items-start gap-4 shadow-sm"><div class="w-12 h-12 rounded-2xl bg-orange-100 text-orange-500 flex items-center justify-center flex-shrink-0"><span class="material-symbols-rounded">device_thermostat</span></div><div class="flex-1"><h4 class="font-bold text-orange-600 text-sm uppercase">Temperature Warning</h4><p class="text-sm text-orange-500 mt-1">${data.temp > config.tempMax ? 'Suhu greenhouse terlalu tinggi (Sistem Mengaktifkan Kipas)' : 'Suhu greenhouse terlalu rendah'} (${data.temp}°C)</p></div></div>`;
+    }
+    container.innerHTML = html;
 }
 
-function closeResetModal()
-{
-    const modal =
-        document.getElementById('resetModal');
-
-    modal.classList.add('hidden');
-
-    modal.classList.remove('flex');
+function updateLocalWeatherWidget(temp) {
+    const wBg = document.getElementById('weatherWidgetBg');
+    const wIcon = document.getElementById('weatherWidgetIcon');
+    const wTxt = document.getElementById('weatherWidgetText');
+    const wRain = document.getElementById('weatherWidgetRain');
+    if (temp >= 32) {
+        wBg.className = "bg-gradient-to-br from-yellow-50 to-white p-5 rounded-3xl shadow flex flex-col items-center justify-center relative border border-transparent hover:border-blue-100 transition-all";
+        wIcon.className = "material-symbols-rounded text-5xl text-yellow-500 animate-bounce"; wIcon.innerText = "wb_sunny";
+        wTxt.innerText = "Panas"; wRain.innerText = "5%";
+    } else if (temp >= 26) {
+        wBg.className = "bg-gradient-to-br from-blue-50 to-white p-5 rounded-3xl shadow flex flex-col items-center justify-center relative border border-transparent hover:border-blue-100 transition-all";
+        wIcon.className = "material-symbols-rounded text-5xl text-blue-400 animate-bounce"; wIcon.innerText = "partly_cloudy_day";
+        wTxt.innerText = "Cerah"; wRain.innerText = "10%";
+    } else {
+        wBg.className = "bg-gradient-to-br from-indigo-50 to-white p-5 rounded-3xl shadow flex flex-col items-center justify-center relative border border-transparent hover:border-blue-100 transition-all";
+        wIcon.className = "material-symbols-rounded text-5xl text-indigo-500 animate-bounce"; wIcon.innerText = "thunderstorm";
+        wTxt.innerText = "Hujan"; wRain.innerText = "80%";
+    }
 }
 
-function submitResetNode()
-{
-    submitPostForm('/reset-node');
+setInterval(fetchRealtimeStats, 3000);
+
+function openControlModal(url, title, text) {
+    const modal = document.getElementById('controlModal');
+    document.getElementById('controlTitle').innerText = title;
+    document.getElementById('controlText').innerText = text;
+    document.getElementById('controlActionBtn').onclick = function() { submitPostForm(url); };
+    modal.classList.remove('hidden'); modal.classList.add('flex');
+}
+function closeControlModal() {
+    const modal = document.getElementById('controlModal');
+    modal.classList.add('hidden'); modal.classList.remove('flex');
 }
 
-
-
-//
-// =======================================================
-// GENERIC POST FORM
-// Reusable POST submit helper
-// =======================================================
-//
-
-function submitPostForm(url)
-{
-    const form =
-        document.createElement('form');
-
-    form.method = 'POST';
-
-    form.action = url;
-
-    // CSRF TOKEN
-    const csrf =
-        document.createElement('input');
-
-    csrf.type = 'hidden';
-
-    csrf.name = '_token';
-
-    csrf.value = '{{ csrf_token() }}';
-
-    form.appendChild(csrf);
-
-    document.body.appendChild(form);
-
-    form.submit();
+function openConfirmModal(url, title, text) {
+    const modal = document.getElementById('confirmModal');
+    document.getElementById('confirmTitle').innerText = title;
+    document.getElementById('confirmText').innerText = text;
+    document.getElementById('confirmActionBtn').onclick = function() { submitPostForm(url); };
+    modal.classList.remove('hidden'); modal.classList.add('flex');
+}
+function closeConfirmModal() {
+    const modal = document.getElementById('confirmModal');
+    modal.classList.add('hidden'); modal.classList.remove('flex');
 }
 
+function openResetModal() {
+    const modal = document.getElementById('resetModal');
+    modal.classList.remove('hidden'); modal.classList.add('flex');
+}
+function closeResetModal() {
+    const modal = document.getElementById('resetModal');
+    modal.classList.add('hidden'); modal.classList.remove('flex');
+}
+function submitResetNode() { submitPostForm('/reset-node'); }
 
+async function submitPostForm(url) {
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+        const resData = await response.json();
+        if (resData.success) {
+            closeControlModal(); closeConfirmModal(); closeResetModal();
+            fetchRealtimeStats(); 
+        } else {
+            alert("Peringatan: " + resData.message);
+            closeControlModal(); closeConfirmModal(); closeResetModal();
+        }
+    } catch (err) {
+        console.error("Gagal AJAX: ", err);
+        window.location.reload();
+    }
+}
 
-//
-// =======================================================
-// SOIL HEATMAP CHART
-// Weekly moisture analysis
-// =======================================================
-//
-
-const soilWeekly =
-{!! json_encode($soilWeekly ?? [0,0,0,0,0,0,0]) !!};
-
-const ctx =
-document.getElementById('soilHeatmapChart');
-
-if (ctx)
-{
-    new Chart(ctx,
-    {
+const soilWeekly = {!! json_encode($soilWeekly ?? [0,0,0,0,0,0,0]) !!};
+const soilThresholdMin = {{ $soilMin }};
+const ctx = document.getElementById('soilHeatmapChart');
+if (ctx) {
+    new Chart(ctx, {
         type: 'bar',
-
-        data:
-        {
-            labels:
-            
-            {!! json_encode($weeklyLabels) !!},
-
-            datasets:
-            [{
-                label: 'Moisture Level',
-
+        data: {
+            labels: {!! json_encode($weeklyLabels) !!},
+            datasets: [{
+                label: 'Moisture Level (%)',
                 data: soilWeekly,
-
-                backgroundColor: function(context)
-                {
-                    const val =
-                        context.dataset.data[
-                            context.dataIndex
-                        ];
-
-                    return val < 45
-
-                        ? '#f87171'
-
-                        : '#3b82f6';
+                backgroundColor: function(context) {
+                    const val = context.dataset.data[context.dataIndex];
+                    return val < soilThresholdMin ? '#f87171' : '#3b82f6';
                 },
-
                 borderRadius: 12,
-
-                borderSkipped: false,
-
-                barThickness: 30
+                barThickness: 24
             }]
         },
-
-        options:
-        {
-            responsive: true,
-
-            maintainAspectRatio: false,
-
-            plugins:
-            {
-                legend:
-                {
-                    display: false
-                }
-            },
-
-            scales:
-            {
-                y:
-                {
-                    beginAtZero: true,
-
-                    max: 100,
-
-                    grid:
-                    {
-                        display: false
-                    }
-                },
-
-                x:
-                {
-                    grid:
-                    {
-                        display: false
-                    }
-                }
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, max: 100, grid: { display: false } },
+                x: { grid: { display: false } }
             }
         }
     });
 }
 
+document.addEventListener('DOMContentLoaded', fetchRealtimeStats);
 </script>
 
-
-
-<!-- =======================================================
-ANIMATION STYLE
-Dashboard Animation Collection
-======================================================= -->
-
 <style>
-
-//
-// =======================================================
-// WAVE ANIMATION
-// =======================================================
-//
-
-@keyframes wave
-{
-    0%
-    {
-        transform:
-            translateX(0)
-            rotate(0deg);
-    }
-
-    100%
-    {
-        transform:
-            translateX(-50%)
-            rotate(360deg);
-    }
-}
-
-.animate-wave
-{
-    animation:
-        wave 4s linear infinite;
-}
-
-
-
-//
-// =======================================================
-// SPIN SLOW
-// =======================================================
-//
-
-@keyframes spinSlow
-{
-    from
-    {
-        transform: rotate(0deg);
-    }
-
-    to
-    {
-        transform: rotate(360deg);
-    }
-}
-
-.animate-spin-slow
-{
-    animation:
-        spinSlow 3s linear infinite;
-}
-
-
-
-//
-// =======================================================
-// BOUNCE SLOW
-// =======================================================
-//
-
-@keyframes bounceSlow
-{
-    0%,
-    100%
-    {
-        transform: translateY(0);
-    }
-
-    50%
-    {
-        transform: translateY(-10px);
-    }
-}
-
-.animate-bounce-slow
-{
-    animation:
-        bounceSlow 4s ease-in-out infinite;
-}
-
-
-
-//
-// =======================================================
-// FLOAT ANIMATION
-// =======================================================
-//
-
-@keyframes float
-{
-    0%
-    {
-        transform:
-            translateY(0px)
-            translateX(0px);
-    }
-
-    50%
-    {
-        transform:
-            translateY(-5px)
-            translateX(5px);
-    }
-
-    100%
-    {
-        transform:
-            translateY(0px)
-            translateX(0px);
-    }
-}
-
-.animate-float
-{
-    animation:
-        float 3s ease-in-out infinite;
-}
-
-
-
-//
-// =======================================================
-// MODAL POP ANIMATION
-// =======================================================
-//
-
-@keyframes modalPop
-{
-    0%
-    {
-        transform: scale(.8);
-
-        opacity: 0;
-    }
-
-    100%
-    {
-        transform: scale(1);
-
-        opacity: 1;
-    }
-}
-
-.animate-modal
-{
-    animation:
-        modalPop .25s ease;
-}
-
+@keyframes wave { 0% { transform: translateX(0) rotate(0deg); } 100% { transform: translateX(-50%) rotate(360deg); } }
+.animate-wave { animation: wave 4s linear infinite; }
+@keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.animate-spin-slow { animation: spinSlow 3s linear infinite; }
+@keyframes bounceSlow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+.animate-bounce-slow { animation: bounceSlow 4s ease-in-out infinite; }
+@keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-5px); } 100% { transform: translateY(0px); } }
+.animate-float { animation: float 3s ease-in-out infinite; }
+@keyframes modalPop { 0% { transform: scale(.95); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.animate-modal { animation: modalPop .2s ease-out; }
 </style>
-
 @endsection
