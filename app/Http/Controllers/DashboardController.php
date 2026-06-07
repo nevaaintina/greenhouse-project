@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Auth;
 class DashboardController extends Controller
 {
     // ======================================================
-    // DASHBOARD MAIN PAGE (INITIAL LOAD berekstensi HTML/View)
+    // DASHBOARD MAIN PAGE
     // ======================================================
     public function index()
     {
@@ -29,7 +29,7 @@ class DashboardController extends Controller
             return back()->with('error', 'Greenhouse aktif tidak ditemukan');
         }
 
-        // 1. Ambil Data Sensor Terakhir (Untuk Rendering Awal Halaman)
+        // 1. Ambil Data Sensor Terakhir
         $sensors = Sensor::with('latestData')
             ->where('greenhouse_id', $greenhouse->id)
             ->get();
@@ -163,6 +163,52 @@ class DashboardController extends Controller
                 'fan'  => $fan?->status ?? 'off',
                 'lamp' => $lamp?->status ?? 'off'
             ]
+        ]);
+    }
+
+    // ======================================================
+    // PERBAIKAN: API UNTUK MENDUKUNG STATUS REALTIME PADA SIDEBAR
+    // ======================================================
+    public function sidebarStatus()
+    {
+        $user = Auth::user();
+
+        if (!$user || !$user->activeGreenhouse) {
+            return response()->json([
+                'mode' => 'Otomatis',
+                'isRunning' => false,
+                'espStatus' => 'offline'
+            ]);
+        }
+
+        $greenhouse = $user->activeGreenhouse;
+
+        // 1. Ambil status skema manajemen mode sistem
+        $setting = Setting::where('greenhouse_id', $greenhouse->id)->first();
+        $mode = $setting?->system_mode ?? 'Otomatis';
+
+        // 2. Ambil semua list aktuator untuk mengecek status running/active
+        $actuatorList = Actuator::where('greenhouse_id', $greenhouse->id)->get();
+        $isRunning = $actuatorList->contains(function ($actuator) {
+            return $actuator->status === 'on' || $actuator->status === true || $actuator->status === 1;
+        });
+
+        // 3. Pengecekan UNIX Timestamp detak jantung konektivitas hardware ESP32
+        $espStatus = 'offline';
+        if ($greenhouse->last_seen) {
+            $lastSeenTime = Carbon::parse($greenhouse->last_seen);
+            $detikSelisih = now()->timestamp - $lastSeenTime->timestamp;
+            
+            // Fail-safe check jika detak jantung ESP dilaporkan di bawah interval 90 detik
+            if ($detikSelisih >= 0 && $detikSelisih <= 90) {
+                $espStatus = 'online';
+            }
+        }
+
+        return response()->json([
+            'mode' => $mode,
+            'isRunning' => $isRunning,
+            'espStatus' => $espStatus
         ]);
     }
 }

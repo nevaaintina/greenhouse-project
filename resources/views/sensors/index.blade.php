@@ -16,7 +16,7 @@
         </div>
     </div>
 
-    <a href="/profile" class="flex items-center gap-3 bg-white p-2 px-4 rounded-full shadow border">
+    <a href="{{ url('/profile') }}" class="flex items-center gap-3 bg-white p-2 px-4 rounded-full shadow border">
         <div class="w-8 h-8 bg-forest text-white flex items-center justify-center rounded-full font-bold">
             {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
         </div>

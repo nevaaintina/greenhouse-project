@@ -36,7 +36,7 @@ else { $lightStatus = 'High'; }
         </p>
     </div>
 
-    <a href="/profile" class="flex items-center gap-3 bg-white p-2 px-4 rounded-full shadow border hover:bg-gray-50 transition">
+    <a href="{{ url('/profile') }}" class="flex items-center gap-3 bg-white p-2 px-4 rounded-full shadow border hover:bg-gray-50 transition">
         <div class="w-8 h-8 bg-forest text-white flex items-center justify-center rounded-full font-bold">
             {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
         </div>
@@ -138,8 +138,8 @@ else { $lightStatus = 'High'; }
         </div>
 
         <div>
-            <h4 class="font-bold text-forest text-lg">Live Ecosystem Component</h4>
-            <p class="text-xs text-gray-400 mt-0.5 mb-3">Kondisi riil komponen maket di lapangan</p>
+            <h4 class="font-bold text-forest text-lg">Live Ecosystem</h4>
+            <p class="text-xs text-gray-400 mt-0.5 mb-3">Actuator Control</p>
             <div class="flex flex-wrap gap-3">
                 {{-- PERBAIKAN INITIAL BLADE STYLE --}}
                 <span id="ecoBadgePump" class="{{ $pumpStatus ? 'bg-green-100 text-green-700 ring-2 ring-green-400/20' : 'bg-gray-100 text-gray-500' }} px-3 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1.5 transition-all">
@@ -159,15 +159,9 @@ else { $lightStatus = 'High'; }
             </div>
         </div>
     </div>
-
-    {{-- Panel Mode Operasional --}}
+{{-- Panel Mode Operasional --}}
     <div class="bg-white p-6 rounded-3xl shadow flex flex-col items-center justify-center">
-        <button type="button" onclick="openResetModal()" class="w-full bg-forest text-white p-5 rounded-2xl font-bold hover:scale-95 transition shadow-lg flex items-center justify-center gap-2">
-            <span class="material-symbols-rounded">restart_alt</span>
-            RESET NODE
-        </button>
-
-        <div class="mt-4 w-full space-y-2">
+        <div class="w-full space-y-2">
             <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Operation Mode</p>
             <div class="flex gap-2 w-full">
                 <button id="btnModeManual" type="button" onclick="openConfirmModal('/mode/Manual', 'MODE MANUAL', 'Kontrol actuator akan dialihkan sepenuhnya ke kontrol manual website.')" 
@@ -268,22 +262,6 @@ else { $lightStatus = 'High'; }
 </div>
 
 {{-- MODALS CONFIG --}}
-<div id="resetModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[999] hidden items-center justify-center p-4">
-    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-modal">
-        <div class="p-6 text-center border-b border-gray-100">
-            <div class="w-16 h-16 mx-auto rounded-full bg-red-100 flex items-center justify-center mb-4">
-                <span class="material-symbols-rounded text-4xl text-red-500">warning</span>
-            </div>
-            <h3 class="text-xl font-black text-red-500 uppercase">Reset Node Hardware</h3>
-            <p class="text-sm text-gray-500 mt-2 leading-relaxed"> Semua aktuator fisik di lapangan akan dinonaktifkan sementara dan sistem dikembalikan penuh ke mode otomatis.</p>
-        </div>
-        <div class="grid grid-cols-2 gap-3 p-5 bg-gray-50">
-            <button onclick="closeResetModal()" class="py-3 rounded-2xl border border-gray-200 text-gray-500 font-bold hover:bg-gray-100 transition">Batal</button>
-            <button onclick="submitResetNode()" class="py-3 rounded-2xl bg-red-500 text-white font-black hover:scale-95 transition">Ya, Reset Node</button>
-        </div>
-    </div>
-</div>
-
 <div id="confirmModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[999] hidden items-center justify-center p-4">
     <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-modal">
         <div class="p-6 text-center border-b border-gray-100">

@@ -3,7 +3,6 @@ use App\Models\Setting;
 use App\Models\Actuator;
 use Carbon\Carbon;
 
-// Fetch data dengan fail-safe check
 $user = auth()->user();
 $greenhouse = $user?->activeGreenhouse;
 
@@ -17,23 +16,16 @@ if ($greenhouse) {
 
 $mode = $setting?->system_mode ?? 'Otomatis';
 
-// Cek apakah ada minimal satu aktuator yang sedang aktif
 $isRunning = $actuatorList->contains(function ($actuator) {
-    return $actuator->status === 'on' || $actuator->status === true;
+    return $actuator->status === 'on' || $actuator->status === true || $actuator->status === 1;
 });
 
-// =======================================================
-// PERBAIKAN MUTLAK: PENENTUAN STATUS KONEKSI ESP32 VIA UNIX TIMESTAMP
-// =======================================================
 $espStatus = 'offline';
 
 if ($greenhouse && $greenhouse->last_seen) {
     $lastSeenTime = Carbon::parse($greenhouse->last_seen);
-    
-    // Hitung selisih detik murni (Waktu Sekarang dikurangi Waktu Terakhir ESP Lapor)
     $detikSelisih = now()->timestamp - $lastSeenTime->timestamp;
     
-    // Jika ESP lapor kurang dari 90 detik yang lalu, dan selisihnya logis (di atas 0 detik)
     if ($detikSelisih >= 0 && $detikSelisih <= 90) {
         $espStatus = 'online';
     }
@@ -55,38 +47,38 @@ md:translate-x-0 md:static md:h-auto">
     </div>
 
     <nav class="flex-1 space-y-1">
-        <a href="/dashboard"
-        class="flex items-center gap-3 {{ request()->is('dashboard') ? 'bg-white/10 opacity-100 font-medium' : 'opacity-60' }} p-2.5 rounded-xl hover:opacity-100 transition text-sm">
+        <a href="{{ url('dashboard') }}"
+        class="flex items-center gap-3 {{ request()->is('greenhouse/dashboard') ? 'bg-white/10 opacity-100 font-medium' : 'opacity-60' }} p-2.5 rounded-xl hover:opacity-100 transition text-sm">
             <span class="material-symbols-rounded text-[20px]">dashboard</span>
             Dashboard
         </a>
 
-        <a href="/sensors"
-        class="flex items-center gap-3 {{ request()->is('sensors') ? 'bg-white/10 opacity-100 font-medium' : 'opacity-60' }} p-2.5 rounded-xl hover:opacity-100 transition text-sm">
+        <a href="{{ url('sensors') }}"
+        class="flex items-center gap-3 {{ request()->is('greenhouse/sensors') ? 'bg-white/10 opacity-100 font-medium' : 'opacity-60' }} p-2.5 rounded-xl hover:opacity-100 transition text-sm">
             <span class="material-symbols-rounded text-[20px]">sensors</span>
             Sensors
         </a>
 
-        <a href="/grafik"
+        <a href="{{ url('grafik') }}"
         class="flex items-center gap-3 {{ request()->is('grafik') ? 'bg-white/10 opacity-100 font-medium' : 'opacity-60' }} p-2.5 rounded-xl hover:opacity-100 transition text-sm">
             <span class="material-symbols-rounded text-[20px]">show_chart</span>
             Grafik & Riwayat
         </a>
 
-        <a href="/logs"
-        class="flex items-center gap-3 {{ request()->is('logs') ? 'bg-white/10 opacity-100 font-medium' : 'opacity-60' }} p-2.5 rounded-xl hover:opacity-100 transition text-sm">
+        <a href="{{ url('logs') }}"
+        class="flex items-center gap-3 {{ request()->is('greenhouse/logs') ? 'bg-white/10 opacity-100 font-medium' : 'opacity-60' }} p-2.5 rounded-xl hover:opacity-100 transition text-sm">
             <span class="material-symbols-rounded text-[20px]">history</span>
             Log Activity
         </a>
 
-        <a href="/profile"
-        class="flex items-center gap-3 {{ request()->is('profile*') ? 'bg-white/10 opacity-100 font-medium' : 'opacity-60' }} p-2.5 rounded-xl hover:opacity-100 transition text-sm">
+        <a href="{{ url('profile') }}"
+        class="flex items-center gap-3 {{ request()->is('greenhouse/profile*') ? 'bg-white/10 opacity-100 font-medium' : 'opacity-60' }} p-2.5 rounded-xl hover:opacity-100 transition text-sm">
             <span class="material-symbols-rounded text-[20px]">person</span>
             Profile
         </a>
 
-        <a href="/settings"
-        class="flex items-center gap-3 {{ request()->is('settings') ? 'bg-white/10 opacity-100 font-medium' : 'opacity-60' }} p-2.5 rounded-xl hover:opacity-100 transition text-sm">
+        <a href="{{ url('settings') }}"
+        class="flex items-center gap-3 {{ request()->is('greenhouse/settings') ? 'bg-white/10 opacity-100 font-medium' : 'opacity-60' }} p-2.5 rounded-xl hover:opacity-100 transition text-sm">
             <span class="material-symbols-rounded text-[20px]">settings</span>
             Settings
         </a>
@@ -98,9 +90,10 @@ md:translate-x-0 md:static md:h-auto">
         </p>
 
         <div class="space-y-3">
+            {{-- Operation Mode Component --}}
             <div class="flex items-center justify-between text-[10px]">
                 <span class="opacity-60 text-white font-medium">Operation Mode</span>
-                <span class="px-2 py-0.5 rounded-md font-black italic border uppercase 
+                <span id="sidebar-mode" class="px-2 py-0.5 rounded-md font-black italic border uppercase 
                     {{ $mode == 'Otomatis'
                         ? 'bg-emerald-400/20 text-emerald-400 border-emerald-400/20'
                         : 'bg-orange-400/20 text-orange-400 border-orange-400/20' }}">
@@ -108,19 +101,21 @@ md:translate-x-0 md:static md:h-auto">
                 </span>
             </div>
 
+            {{-- Actuators Status Component --}}
             <div class="flex items-center justify-between text-[10px]">
                 <span class="opacity-60 text-white font-medium">Actuators Status</span>
-                <div class="flex items-center gap-1.5 font-bold italic {{ $isRunning ? 'text-emerald-400' : 'text-gray-400' }}">
-                    <div class="w-1.5 h-1.5 rounded-full {{ $isRunning ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]' : 'bg-gray-400' }}"></div>
-                    {{ $isRunning ? 'Running' : 'Idle' }}
+                <div id="sidebar-actuator-container" class="flex items-center gap-1.5 font-bold italic {{ $isRunning ? 'text-emerald-400' : 'text-gray-400' }}">
+                    <div id="sidebar-actuator-dot" class="w-1.5 h-1.5 rounded-full {{ $isRunning ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]' : 'bg-gray-400' }}"></div>
+                    <span id="sidebar-actuator-text">{{ $isRunning ? 'Running' : 'Idle' }}</span>
                 </div>
             </div>
 
+            {{-- ESP32 Connection Component --}}
             <div class="pt-2 border-t border-white/5 flex items-center justify-between text-[9px]">
                 <span class="opacity-40 text-white italic">ESP32 Connection</span>
                 <div class="flex items-center gap-1.5">
-                    <div class="w-2 h-2 rounded-full {{ $espStatus == 'online' ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]' : 'bg-red-400' }}"></div>
-                    <span class="font-bold uppercase {{ $espStatus == 'online' ? 'text-emerald-400' : 'text-red-400' }}">
+                    <div id="sidebar-esp-dot" class="w-2 h-2 rounded-full {{ $espStatus == 'online' ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]' : 'bg-red-400' }}"></div>
+                    <span id="sidebar-esp-text" class="font-bold uppercase {{ $espStatus == 'online' ? 'text-emerald-400' : 'text-red-400' }}">
                         {{ $espStatus }}
                     </span>
                 </div>
@@ -128,3 +123,57 @@ md:translate-x-0 md:static md:h-auto">
         </div>
     </div>
 </aside>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modeEl = document.getElementById('sidebar-mode');
+    const actContainer = document.getElementById('sidebar-actuator-container');
+    const actDot = document.getElementById('sidebar-actuator-dot');
+    const actText = document.getElementById('sidebar-actuator-text');
+    const espDot = document.getElementById('sidebar-esp-dot');
+    const espText = document.getElementById('sidebar-esp-text');
+
+    function updateSidebarRealtime() {
+        // Mengarah ke endpoint penyuplai status terpusat
+        fetch('/api/greenhouse/status')
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                // 1. Sinkronisasi Mode Operasional
+                modeEl.textContent = data.mode;
+                if (data.mode === 'Otomatis') {
+                    modeEl.className = "px-2 py-0.5 rounded-md font-black italic border uppercase bg-emerald-400/20 text-emerald-400 border-emerald-400/20";
+                } else {
+                    modeEl.className = "px-2 py-0.5 rounded-md font-black italic border uppercase bg-orange-400/20 text-orange-400 border-orange-400/20";
+                }
+
+                // 2. Sinkronisasi Status Aktuator (Running / Idle)
+                if (data.isRunning) {
+                    actText.textContent = 'Running';
+                    actContainer.className = "flex items-center gap-1.5 font-bold italic text-emerald-400";
+                    actDot.className = "w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]";
+                } else {
+                    actText.textContent = 'Idle';
+                    actContainer.className = "flex items-center gap-1.5 font-bold italic text-gray-400";
+                    actDot.className = "w-1.5 h-1.5 rounded-full bg-gray-400";
+                }
+
+                // 3. Sinkronisasi Jantung Koneksi Hardware ESP32
+                espText.textContent = data.espStatus.toUpperCase();
+                if (data.espStatus === 'online') {
+                    espText.className = "font-bold uppercase text-emerald-400";
+                    espDot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]";
+                } else {
+                    espText.className = "font-bold uppercase text-red-400";
+                    espDot.className = "w-2 h-2 rounded-full bg-red-400";
+                }
+            })
+            .catch(error => console.error('Error fetching real-time sidebar status:', error));
+    }
+
+    // Eksekusi pembaruan status berkala setiap 5 detik
+    setInterval(updateSidebarRealtime, 5000);
+});
+</script>

@@ -88,4 +88,9 @@ Route::middleware('auth')->group(function () {
     // muatan array 'actuators' utuh demi kestabilan kontrol manual & otomatis
     // ==========================================================================
     Route::get('/stats/realtime', [DashboardController::class, 'realtimeStats'])->name('stats.realtime');
+
+    // ==========================================================================
+    // DATA REALTIME SIDEBAR: Menyediakan data mode, status aktuator, dan koneksi ESP32
+    // ==========================================================================
+    Route::get('/api/greenhouse/status', [DashboardController::class, 'sidebarStatus'])->name('sidebar.status');
 });
