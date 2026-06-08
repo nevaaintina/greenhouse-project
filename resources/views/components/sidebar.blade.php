@@ -32,18 +32,31 @@ if ($greenhouse && $greenhouse->last_seen) {
 }
 @endphp
 
+<div class="md:hidden fixed top-4 left-4 z-50">
+    <button id="sidebar-toggle" class="p-2 bg-forest text-white rounded-xl shadow-lg hover:bg-forest/90 transition flex items-center justify-center">
+        <span id="toggle-icon" class="material-symbols-rounded text-2xl">menu</span>
+    </button>
+</div>
+
+<div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden transition-opacity duration-300 opacity-0"></div>
+
 <aside id="sidebar"
 class="w-64 bg-forest text-white flex flex-col p-6 shadow-2xl
-fixed inset-y-0 left-0 z-40 -translate-x-full transition-transform duration-300
+fixed inset-y-0 left-0 z-40 -translate-x-full transition-transform duration-300 ease-in-out
 md:translate-x-0 md:static md:h-auto">
 
-    <div class="flex items-center gap-3 mb-8 px-2">
-        <span class="material-symbols-rounded text-emerald-400 text-3xl">
-            potted_plant
-        </span>
-        <h1 class="font-semibold text-lg uppercase tracking-[0.1em] text-white/90">
-            SmartGrow
-        </h1>
+    <div class="flex items-center justify-between mb-8 px-2">
+        <div class="flex items-center gap-3">
+            <span class="material-symbols-rounded text-emerald-400 text-3xl">
+                potted_plant
+            </span>
+            <h1 class="font-semibold text-lg uppercase tracking-[0.1em] text-white/90">
+                SmartGrow
+            </h1>
+        </div>
+        <button id="sidebar-close" class="md:hidden text-white/60 hover:text-white transition">
+            <span class="material-symbols-rounded">close</span>
+        </button>
     </div>
 
     <nav class="flex-1 space-y-1">
@@ -126,6 +139,56 @@ md:translate-x-0 md:static md:h-auto">
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+    // --- LOGIKA TOGGLE MOBILE ---
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    const closeBtn = document.getElementById('sidebar-close');
+    const overlay = document.getElementById('sidebar-overlay');
+    const toggleIcon = document.getElementById('toggle-icon');
+
+    function openSidebar() {
+        sidebar.classList.remove('-translate-x-full');
+        overlay.classList.remove('hidden');
+        setTimeout(() => {
+            overlay.classList.add('opacity-100');
+        }, 20);
+        toggleIcon.textContent = 'close';
+    }
+
+    function closeSidebar() {
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.remove('opacity-100');
+        toggleIcon.textContent = 'menu';
+        // Tunggu transisi selesai sebelum menyembunyikan overlay sepenuhnya
+        setTimeout(() => {
+            if (sidebar.classList.contains('-translate-x-full')) {
+                overlay.classList.add('hidden');
+            }
+        }, 300);
+    }
+
+    toggleBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (sidebar.classList.contains('-translate-x-full')) {
+            openSidebar();
+        } else {
+            closeSidebar();
+        }
+    });
+
+    closeBtn.addEventListener('click', closeSidebar);
+    overlay.addEventListener('click', closeSidebar);
+
+    // Mengantisipasi jika layar di-resize dari mobile langsung ke desktop
+    window.addEventListener('resize', function() {
+        if (window.innerWidth >= 768) { // md breakpoint Tailwind
+            overlay.classList.add('hidden');
+            overlay.classList.remove('opacity-100');
+        }
+    });
+
+
+    // --- REALTIME DATA FETCHING ---
     const modeEl = document.getElementById('sidebar-mode');
     const actContainer = document.getElementById('sidebar-actuator-container');
     const actDot = document.getElementById('sidebar-actuator-dot');
@@ -134,7 +197,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const espText = document.getElementById('sidebar-esp-text');
 
     function updateSidebarRealtime() {
-        // Mengarah ke endpoint penyuplai status terpusat
         fetch('/api/greenhouse/status')
             .then(response => {
                 if (!response.ok) throw new Error('Network response was not ok');

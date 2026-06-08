@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
+use Illuminate\Foundation\Auth\EmailVerificationRequest;
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProfileController;
@@ -34,14 +36,40 @@ Route::middleware('guest')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| PROTECTED ROUTES (AUTH)
+| EMAIL VERIFICATION ROUTES (Bagi User yang Sudah Login tapi Belum Verifikasi)
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth')->group(function () {
     
-    // Logout
-    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    // 1. Halaman Pemberitahuan: "Silakan Verifikasi Email Anda"
+    Route::get('/email/verify', function () {
+        return view('auth.verify-email');
+    })->name('verification.notice');
 
+    // 2. Handler saat Link Verifikasi di Email di-klik oleh Petani
+    Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
+        $request->fulfill();
+        return redirect()->route('dashboard.index')->with('success', 'Email berhasil diverifikasi!');
+    })->middleware('signed')->name('verification.verify');
+
+    // 3. Tombol Aksi untuk Kirim Ulang Email Verifikasi (Resend)
+    Route::post('/email/verification-notification', function (Request $request) {
+        $request->user()->sendEmailVerificationNotification();
+        return back()->with('message', 'Link verifikasi baru telah dikirim ke email Anda!');
+    })->middleware('throttle:6,1')->name('verification.send');
+
+    // Logout tetap bisa diakses meskipun email belum diverifikasi
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+});
+
+/*
+|--------------------------------------------------------------------------
+| PROTECTED ROUTES (AUTH & VERIFIED)
+| Hanya bisa diakses jika Petani sudah LOGIN DAN EMAILNYA VALID
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'verified'])->group(function () {
+    
     // Dashboard & Greenhouse Switcher
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
     Route::post('/greenhouse/switch/{id}', [ProfileController::class, 'switchGreenhouse'])->name('greenhouse.switch');

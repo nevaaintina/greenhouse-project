@@ -3,39 +3,20 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-
-use Carbon\Carbon;
+use Illuminate\Support\Facades\URL; // <-- Tambahkan ini jika belum ada
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register services.
-     */
     public function register(): void
     {
         //
     }
 
-    /**
-     * Bootstrap services.
-     */
     public function boot(): void
     {
-        // ======================================================
-        // LOCALE INDONESIA
-        // ======================================================
-
-        Carbon::setLocale('id');
-
-        setlocale(
-
-            LC_TIME,
-
-            'id_ID',
-
-            'id_ID.UTF-8',
-
-            'Indonesian'
-        );
+        // Tambahkan baris ini untuk memaksa HTTPS di VM/Hosting
+        if (config('app.env') === 'production' || env('FORCE_HTTPS', false)) {
+            URL::forceScheme('https');
+        }
     }
 }

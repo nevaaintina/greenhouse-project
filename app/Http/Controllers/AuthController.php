@@ -16,6 +16,11 @@ class AuthController extends Controller
     {
         if (Auth::check())
         {
+            // PERBAIKAN: Jika sudah login, cek dulu status verifikasi emailnya
+            if (!Auth::user()->hasVerifiedEmail()) {
+                return redirect()->route('verification.notice');
+            }
+
             return redirect()->route('dashboard.index');
         }
 
@@ -82,6 +87,14 @@ class AuthController extends Controller
                     'active_greenhouse_id' => $greenhouse->id
                 ]);
             }
+        }
+
+        // ======================================================
+        // CEK VERIFIKASI EMAIL SETELAH LOGIN SUKSES
+        // Jika belum diverifikasi, arahkan ke rute pemberitahuan verifikasi
+        // ======================================================
+        if (!$user->hasVerifiedEmail()) {
+            return redirect()->route('verification.notice');
         }
 
         // ======================================================
