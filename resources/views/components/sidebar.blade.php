@@ -61,9 +61,9 @@ md:translate-x-0 md:static md:h-auto">
 
     <nav class="flex-1 space-y-1">
         {{-- Dashboard --}}
-        <a href="{{ url('greenhouse/dashboard') }}"
+        <a href="{{ url('dashboard') }}"
         class="flex items-center gap-3 p-2.5 rounded-xl transition text-sm duration-200
-        {{ request()->is('greenhouse/dashboard') 
+        {{ request()->is('dashboard') 
             ? 'bg-white/15 text-white font-semibold border-l-4 border-emerald-400 pl-1.5 opacity-100' 
             : 'opacity-60 text-white/90 hover:bg-white/5 hover:opacity-100' }}">
             <span class="material-symbols-rounded text-[20px]">dashboard</span>
@@ -71,9 +71,9 @@ md:translate-x-0 md:static md:h-auto">
         </a>
 
         {{-- Sensors --}}
-        <a href="{{ url('greenhouse/sensors') }}"
+        <a href="{{ url('sensors') }}"
         class="flex items-center gap-3 p-2.5 rounded-xl transition text-sm duration-200
-        {{ request()->is('greenhouse/sensors') 
+        {{ request()->is('sensors') 
             ? 'bg-white/15 text-white font-semibold border-l-4 border-emerald-400 pl-1.5 opacity-100' 
             : 'opacity-60 text-white/90 hover:bg-white/5 hover:opacity-100' }}">
             <span class="material-symbols-rounded text-[20px]">sensors</span>
@@ -81,9 +81,9 @@ md:translate-x-0 md:static md:h-auto">
         </a>
 
         {{-- Grafik & Riwayat --}}
-        <a href="{{ url('greenhouse/grafik') }}"
+        <a href="{{ url('grafik') }}"
         class="flex items-center gap-3 p-2.5 rounded-xl transition text-sm duration-200
-        {{ request()->is('greenhouse/grafik*') 
+        {{ request()->is('grafik') 
             ? 'bg-white/15 text-white font-semibold border-l-4 border-emerald-400 pl-1.5 opacity-100' 
             : 'opacity-60 text-white/90 hover:bg-white/5 hover:opacity-100' }}">
             <span class="material-symbols-rounded text-[20px]">show_chart</span>
@@ -91,9 +91,9 @@ md:translate-x-0 md:static md:h-auto">
         </a>
 
         {{-- Log Activity --}}
-        <a href="{{ url('greenhouse/logs') }}"
+        <a href="{{ url('logs') }}"
         class="flex items-center gap-3 p-2.5 rounded-xl transition text-sm duration-200
-        {{ request()->is('greenhouse/logs') 
+        {{ request()->is('logs') 
             ? 'bg-white/15 text-white font-semibold border-l-4 border-emerald-400 pl-1.5 opacity-100' 
             : 'opacity-60 text-white/90 hover:bg-white/5 hover:opacity-100' }}">
             <span class="material-symbols-rounded text-[20px]">history</span>
@@ -101,9 +101,9 @@ md:translate-x-0 md:static md:h-auto">
         </a>
 
         {{-- Profile --}}
-        <a href="{{ url('greenhouse/profile') }}"
+        <a href="{{ url('profile') }}"
         class="flex items-center gap-3 p-2.5 rounded-xl transition text-sm duration-200
-        {{ request()->is('greenhouse/profile*') 
+        {{ request()->is('profile') 
             ? 'bg-white/15 text-white font-semibold border-l-4 border-emerald-400 pl-1.5 opacity-100' 
             : 'opacity-60 text-white/90 hover:bg-white/5 hover:opacity-100' }}">
             <span class="material-symbols-rounded text-[20px]">person</span>
@@ -111,9 +111,9 @@ md:translate-x-0 md:static md:h-auto">
         </a>
 
         {{-- Settings --}}
-        <a href="{{ url('greenhouse/settings') }}"
+        <a href="{{ url('settings') }}"
         class="flex items-center gap-3 p-2.5 rounded-xl transition text-sm duration-200
-        {{ request()->is('greenhouse/settings') 
+        {{ request()->is('settings') 
             ? 'bg-white/15 text-white font-semibold border-l-4 border-emerald-400 pl-1.5 opacity-100' 
             : 'opacity-60 text-white/90 hover:bg-white/5 hover:opacity-100' }}">
             <span class="material-symbols-rounded text-[20px]">settings</span>
