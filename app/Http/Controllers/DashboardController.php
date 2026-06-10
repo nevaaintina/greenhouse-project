@@ -9,6 +9,7 @@ use App\Models\Setting;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -50,17 +51,19 @@ class DashboardController extends Controller
         $weeklyLabels = [];
 
         if (isset($map['soil'])) {
+            // OPTIMASI: Agregasi langsung via Database agar RAM server tidak jebol saat log data menumpuk
             $soilData = SensorData::where('sensor_id', $map['soil']->id)
                 ->whereBetween('recorded_at', [
                     Carbon::now()->subDays(6)->startOfDay(),
                     Carbon::now()->endOfDay()
                 ])
-                ->latest('recorded_at')
-                ->take(500)
+                ->select(
+                    DB::raw('DATE(recorded_at) as date'),
+                    DB::raw('AVG(value) as avg_value')
+                )
+                ->groupBy(DB::raw('DATE(recorded_at)'))
                 ->get()
-                ->groupBy(function ($d) {
-                    return Carbon::parse($d->recorded_at)->format('Y-m-d');
-                });
+                ->keyBy('date');
 
             $days = collect();
             for ($i = 6; $i >= 0; $i--) {
@@ -71,9 +74,10 @@ class DashboardController extends Controller
                 $key = $day->format('Y-m-d');
                 $weeklyLabels[] = $day->translatedFormat('D');
 
-                $soilWeekly[$index] = round(
-                    optional($soilData->get($key) ?? collect())->avg('value') ?? 0
-                );
+                // Ambil rata-rata nilai, jika tidak ada setel ke 0
+                $soilWeekly[$index] = isset($soilData[$key]) 
+                    ? round($soilData[$key]->avg_value) 
+                    : 0;
             }
         }
 
@@ -117,7 +121,7 @@ class DashboardController extends Controller
     }
 
     // ======================================================
-    // API DATA REAL-TIME PENYUPLAI AJAX POLLING (TERINTEGRASI FULL ACTUATORS STATE)
+    // API DATA REAL-TIME PENYUPLAI AJAX POLLING
     // ======================================================
     public function realtimeStats()
     {
@@ -129,28 +133,25 @@ class DashboardController extends Controller
 
         $greenhouse = $user->activeGreenhouse;
 
-        // Ambil data sensor terbaru
         $sensors = Sensor::with('latestData')
             ->where('greenhouse_id', $greenhouse->id)
             ->get()
             ->keyBy('type');
 
-        // Ambil stempel log update paling terakhir masuk ke DB (Lengkap data detik)
         $lastUpdateData = SensorData::whereIn('sensor_id', $sensors->pluck('id'))
             ->latest('recorded_at')
             ->first();
 
+        // FORMAT SINKRON: Menggunakan format spasi standar agar serasi dengan inisial load Blade template
         $lastUpdateFormatted = $lastUpdateData 
-            ? Carbon::parse($lastUpdateData->recorded_at)->translatedFormat('d M Y • H:i:s') 
-            : now()->translatedFormat('d M Y • H:i:s');
+            ? Carbon::parse($lastUpdateData->recorded_at)->translatedFormat('d M Y H:i:s') 
+            : now()->translatedFormat('d M Y H:i:s');
 
-        // Ambil status sakelar hardware terkini
         $pump = Actuator::where('greenhouse_id', $greenhouse->id)->where('type', 'pump')->first();
         $fan  = Actuator::where('greenhouse_id', $greenhouse->id)->where('type', 'fan')->first();
         $lamp = Actuator::where('greenhouse_id', $greenhouse->id)->where('type', 'lamp')->first();
         $setting = Setting::where('greenhouse_id', $greenhouse->id)->first();
 
-        // Mengembalikan struktur payload JSON utuh yang dinantikan oleh JavaScript Dashboard
         return response()->json([
             'soil'        => $sensors->get('soil')?->latestData?->value ?? 0,
             'temp'        => $sensors->get('temperature')?->latestData?->value ?? 0,
@@ -167,7 +168,7 @@ class DashboardController extends Controller
     }
 
     // ======================================================
-    // PERBAIKAN: API UNTUK MENDUKUNG STATUS REALTIME PADA SIDEBAR
+    // API UNTUK MENDUKUNG STATUS REALTIME PADA SIDEBAR
     // ======================================================
     public function sidebarStatus()
     {
@@ -183,23 +184,19 @@ class DashboardController extends Controller
 
         $greenhouse = $user->activeGreenhouse;
 
-        // 1. Ambil status skema manajemen mode sistem
         $setting = Setting::where('greenhouse_id', $greenhouse->id)->first();
         $mode = $setting?->system_mode ?? 'Otomatis';
 
-        // 2. Ambil semua list aktuator untuk mengecek status running/active
         $actuatorList = Actuator::where('greenhouse_id', $greenhouse->id)->get();
         $isRunning = $actuatorList->contains(function ($actuator) {
             return $actuator->status === 'on' || $actuator->status === true || $actuator->status === 1;
         });
 
-        // 3. Pengecekan UNIX Timestamp detak jantung konektivitas hardware ESP32
         $espStatus = 'offline';
         if ($greenhouse->last_seen) {
             $lastSeenTime = Carbon::parse($greenhouse->last_seen);
             $detikSelisih = now()->timestamp - $lastSeenTime->timestamp;
             
-            // Fail-safe check jika detak jantung ESP dilaporkan di bawah interval 90 detik
             if ($detikSelisih >= 0 && $detikSelisih <= 90) {
                 $espStatus = 'online';
             }

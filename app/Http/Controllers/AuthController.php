@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use App\Models\Greenhouse;
 
@@ -28,7 +29,7 @@ class AuthController extends Controller
     }
 
     // ======================================================
-    // LOGIN PROCESS
+    // LOGIN PROCESS (WITH RATE LIMITING)
     // ======================================================
     public function login(Request $request)
     {
@@ -48,26 +49,51 @@ class AuthController extends Controller
         ]);
 
         // ======================================================
-        // FORMAT CREDENTIALS
+        // FORMAT CREDENTIALS & THROTTLE KEY
         // ======================================================
+        $emailFormatted = strtolower(trim($validated['email']));
+        
         $credentials = [
-            'email' => strtolower(trim($validated['email'])),
+            'email' => $emailFormatted,
             'password' => $validated['password']
         ];
 
         $remember = $request->boolean('remember');
+
+        // Buat key unik berdasarkan email (lowercase) dan IP Address user
+        $throttleKey = $emailFormatted . '|' . $request->ip();
+
+        // ======================================================
+        // CEK APAKAH USER MELEBIHI BATAS LOGIN (MAX 5 KALI)
+        // ======================================================
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) 
+        {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            $minutes = ceil($seconds / 60);
+
+            throw ValidationException::withMessages([
+                'email' => "Terlalu banyak percobaan login. Silakan coba lagi dalam {$minutes} menit."
+            ]);
+        }
 
         // ======================================================
         // ATTEMPT LOGIN
         // ======================================================
         if (!Auth::attempt($credentials, $remember))
         {
+            // Jika gagal login, tambahkan 1 hit ke limiter (berlaku selama 60 detik)
+            RateLimiter::hit($throttleKey, 60);
+
             throw ValidationException::withMessages([
                 'email' => 'Email atau password salah.'
             ]);
         }
 
-        // REGENERATE SESSION
+        // ======================================================
+        // LOGIN SUKSES: CLEAR LIMITER & REGENERATE SESSION
+        // ======================================================
+        RateLimiter::clear($throttleKey);
+        
         $request->session()->regenerate();
 
         $user = Auth::user();
