@@ -10,19 +10,23 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::create('actuators', function (Blueprint $table) {
-        $table->id();
+    {
+        Schema::create('actuators', function (Blueprint $table) {
+            $table->id();
 
-        $table->foreignId('greenhouse_id')->constrained()->cascadeOnDelete();
+            // Relasi ke tabel greenhouses
+            $table->foreignId('greenhouse_id')->constrained()->cascadeOnDelete();
 
-        $table->string('name');
-        $table->enum('status', ['on','off'])->default('off');
-        $table->enum('mode', ['manual','auto'])->default('auto');
+            $table->string('name'); // Contoh: Kipas Aliran Udara, Pompa Air Utama
+            $table->string('type'); // <-- KOLOM INI YANG TADI KETINGGALAN (Contoh: fan, pump, lamp)
+            
+            // Menggunakan string dengan default agar aman di SQLite & MySQL
+            $table->string('status')->default('off'); // Nilai: 'on' atau 'off'
+            $table->string('mode')->default('auto');   // Nilai: 'manual' atau 'auto'
 
-        $table->timestamps();
-    });
-}
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

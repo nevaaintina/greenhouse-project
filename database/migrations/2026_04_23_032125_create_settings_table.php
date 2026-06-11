@@ -10,23 +10,35 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::create('settings', function (Blueprint $table) {
-        $table->id();
+    {
+        Schema::create('settings', function (Blueprint $table) {
+            $table->id();
 
-        $table->foreignId('greenhouse_id')->constrained()->cascadeOnDelete();
+            // Relasi ke tabel greenhouses
+            $table->foreignId('greenhouse_id')->constrained()->cascadeOnDelete();
 
-        $table->float('temperature_min');
-        $table->float('temperature_max');
-        $table->float('humidity_min');
-        $table->float('humidity_max');
-        $table->float('soil_moisture_min');
-        $table->float('soil_moisture_max');
+            // Threshold Suhu Udara
+            $table->float('temperature_min');
+            $table->float('temperature_max');
 
+            // Threshold Kelembapan Udara
+            $table->float('humidity_min');
+            $table->float('humidity_max');
 
-        $table->timestamps();
-    });
-}
+            // Threshold Kelembapan Tanah
+            $table->float('soil_moisture_min');
+            $table->float('soil_moisture_max');
+
+            // Threshold Intensitas Cahaya (Urutan sesuai phpMyAdmin lokal)
+            $table->float('light_min');
+            $table->float('light_max');
+
+            // Mode Sistem (Menggunakan string agar fleksibel dan aman di SQLite)
+            $table->string('system_mode');
+
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

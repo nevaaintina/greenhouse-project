@@ -10,18 +10,23 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::create('logs', function (Blueprint $table) {
-        $table->id();
+    {
+        Schema::create('logs', function (Blueprint $table) {
+            $table->id();
 
-        $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            // Relasi ke tabel users
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
 
-        $table->string('activity');
-        $table->text('description')->nullable();
+            // Relasi ke tabel greenhouses (Bersifat nullable sesuai phpMyAdmin lokal Anda)
+            $table->foreignId('greenhouse_id')->nullable()->constrained()->cascadeOnDelete();
 
-        $table->timestamp('created_at')->nullable();
-    });
-}
+            $table->string('activity'); // Jenis aktivitas
+            $table->text('description')->nullable(); // Detail aktivitas
+
+            // Hanya mencatat waktu pembuatan log tanpa updated_at
+            $table->timestamp('created_at')->nullable();
+        });
+    }
 
     /**
      * Reverse the migrations.

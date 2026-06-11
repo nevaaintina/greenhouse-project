@@ -10,19 +10,20 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::create('sensors', function (Blueprint $table) {
-        $table->id();
+    {
+        Schema::create('sensors', function (Blueprint $table) {
+            $table->id();
 
-        $table->foreignId('greenhouse_id')->constrained()->cascadeOnDelete();
+            // Relasi ke tabel greenhouses
+            $table->foreignId('greenhouse_id')->constrained()->cascadeOnDelete();
 
-        $table->string('name');
-        $table->string('type');
-        $table->string('unit');
+            $table->string('name'); // Contoh: DHT22, LDR
+            $table->string('type'); // Contoh: Suhu, Kelembapan, Cahaya
+            $table->string('unit'); // Contoh: °C, %, Lux
 
-        $table->timestamps();
-    });
-}
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

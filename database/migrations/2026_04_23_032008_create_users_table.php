@@ -10,24 +10,22 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::create('users', function (Blueprint $table) {
-        $table->id();
-
-        $table->string('name');
-        $table->string('email')->unique();
-        $table->timestamp('email_verified_at')->nullable();
-        $table->string('password');
-        $table->rememberToken();
-
-        $table->enum('role', ['admin','petani'])->default('petani');
-        $table->string('location')->nullable();
-        $table->string('farm_type')->nullable();
-        $table->string('greenhouse_name')->nullable();
-
-        $table->timestamps();
-    });
-}
+    {
+        Schema::create('users', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('email')->unique();
+            $table->string('phone'); // Kolom nomor HP sesuai phpMyAdmin
+            $table->timestamp('email_verified_at')->nullable();
+            $table->string('password');
+            $table->rememberToken();
+            
+            // Kolom active_greenhouse_id disatukan di sini agar aman di SQLite
+            $table->unsignedBigInteger('active_greenhouse_id')->nullable();
+            
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

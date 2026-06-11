@@ -10,18 +10,22 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::create('sensor_data', function (Blueprint $table) {
-        $table->id();
+    {
+        Schema::create('sensor_data', function (Blueprint $table) {
+            $table->id();
 
-        $table->foreignId('sensor_id')->constrained()->cascadeOnDelete();
+            // Relasi ke tabel sensors
+            $table->foreignId('sensor_id')->constrained()->cascadeOnDelete();
 
-        $table->float('value');
-        $table->timestamp('recorded_at');
+            // Nilai pembacaan sensor (Suhu, Kelembapan, dll.)
+            $table->float('value');
 
-        $table->timestamps();
-    });
-}
+            // Waktu saat data sensor tercatat oleh ESP32/Sistem
+            $table->timestamp('recorded_at');
+
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

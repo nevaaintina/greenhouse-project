@@ -10,20 +10,24 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::create('greenhouses', function (Blueprint $table) {
-        $table->id();
+    {
+        Schema::create('greenhouses', function (Blueprint $table) {
+            $table->id();
 
-        $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            // Relasi ke tabel users
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
 
-        $table->string('name');
-        $table->string('location');
-        $table->string('size')->nullable();
-        $table->string('plant_type')->nullable();
+            $table->string('name');
+            $table->string('location');
+            $table->string('size')->nullable();
+            $table->string('plant_type')->nullable();
 
-        $table->timestamps();
-    });
-}
+            $table->timestamps();
+
+            // Tambahkan kolom last_seen sesuai phpMyAdmin lokal Anda
+            $table->timestamp('last_seen')->nullable();
+        });
+    }
 
     /**
      * Reverse the migrations.
