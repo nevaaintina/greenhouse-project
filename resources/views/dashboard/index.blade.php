@@ -23,6 +23,10 @@ else { $tempStatus = 'Cold'; }
 if ($light < $lightMin) { $lightStatus = 'Low'; } 
 elseif ($light <= $lightMax) { $lightStatus = 'Good'; } 
 else { $lightStatus = 'High'; }
+
+if ($hum < $humMin) { $humStatus = 'Dry'; }
+elseif ($hum <= $humMax) { $humStatus = 'Optimal'; }
+else { $humStatus = 'Humid'; }
 @endphp
 
 <header class="flex justify-between items-center mb-10">
@@ -77,9 +81,10 @@ else { $lightStatus = 'High'; }
                 </div>
             </div>
         </div>
-        <span id="statusTempCard" class="text-[10px] font-bold {{ ($temp > $tempMax || $temp < $tempMin) ? 'text-red-500 animate-pulse' : 'text-green-600' }} uppercase mt-4">
-            {{ $tempStatus }}
-        </span>
+        <div class="mt-4 flex items-center gap-1.5">
+            <span id="dotTempCard" class="w-2 h-2 rounded-full {{ ($temp > $tempMax || $temp < $tempMin) ? 'bg-red-500 animate-pulse' : 'bg-green-600' }}"></span>
+            <p id="statusTempCard" class="text-[11px] font-bold text-gray-600 uppercase">{{ $tempStatus }}</p>
+        </div>
     </div>
 
     {{-- Card Kelembapan Udara --}}
@@ -94,19 +99,25 @@ else { $lightStatus = 'High'; }
                 <h3 class="text-3xl font-black text-gray-800 leading-none"><span id="textHumCard">{{ $hum }}</span><span class="text-sm text-gray-400">%</span></h3>
             </div>
         </div>
-        <span class="text-[10px] font-bold text-emerald-600 uppercase mt-4">Optimal Air</span>
+        <div class="mt-4 flex items-center gap-1.5">
+            <span id="dotHumCard" class="w-2 h-2 rounded-full {{ ($hum < $humMin || $hum > $humMax) ? 'bg-red-500 animate-pulse' : 'bg-emerald-600' }}"></span>
+            <p id="statusHumCard" class="text-[11px] font-bold text-gray-600 uppercase">{{ $humStatus }}</p>
+        </div>
     </div>
 
     {{-- Card Intensitas Cahaya --}}
     <div class="bg-white/80 p-5 rounded-3xl shadow flex flex-col items-center relative group border border-transparent hover:border-yellow-200 transition-all">
         <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Intensitas Cahaya</p>
-        <div class="relative w-28 h-28 flex items-center justify-center">
+        <div class="relative w-28 h-28 flex items-center justify-center bg-gray-50 rounded-full border-4 border-gray-100 overflow-hidden">
             <span class="material-symbols-rounded text-5xl text-yellow-500 animate-spin-slow absolute">wb_sunny</span>
             <div class="absolute inset-0 border-2 border-dashed border-yellow-200 rounded-full animate-spin-slow" style="animation-duration: 10s"></div>
         </div>
-        <div class="text-center mt-2">
+        <div class="text-center mt-2 w-full flex flex-col items-center">
             <h3 class="text-xl font-black text-gray-800"><span id="textLightCard">{{ $light }}</span> <span class="text-[10px] text-gray-400 uppercase tracking-tighter">Lux</span></h3>
-            <p id="statusLightCard" class="text-[9px] font-black text-yellow-700 uppercase bg-yellow-100 px-2 py-0.5 rounded-full mt-1">{{ $lightStatus }}</p>
+            <div class="mt-1.5 flex items-center gap-1.5">
+                <span id="dotLightCard" class="w-2 h-2 rounded-full {{ ($light < $lightMin || $light > $lightMax) ? 'bg-red-500 animate-pulse' : 'bg-yellow-500' }}"></span>
+                <p id="statusLightCard" class="text-[10px] font-bold text-gray-600 uppercase">{{ $lightStatus }}</p>
+            </div>
         </div>
     </div>
 
@@ -293,7 +304,6 @@ else { $lightStatus = 'High'; }
     </div>
 </div>
 
-{{-- FIX: Deklarasi Reset Modal HTML untuk mencegah JavaScript Error Null Target --}}
 <div id="resetModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[999] hidden items-center justify-center p-4">
     <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-modal">
         <div class="p-6 text-center border-b border-gray-100">
@@ -325,31 +335,43 @@ async function fetchRealtimeStats() {
         if (!response.ok) return;
         const data = await response.json();
 
+        // Update teks nilai sensor utama
         document.getElementById('textSoilCard').innerText = data.soil;
         document.getElementById('textTempCard').innerText = data.temp;
         document.getElementById('textHumCard').innerText  = data.hum;
         document.getElementById('textLightCard').innerText = data.light;
         document.getElementById('textLastUpdate').innerText = data.last_update || new Date().toLocaleTimeString('id-ID');
 
+        // Visual Gelombang Air Tanah
         document.getElementById('soilWaveVisual').style.height = data.soil + '%';
 
-        // OPTIMASI: Evaluasi status rentang nilai secara presisi (termasuk kondisi di atas batas maksimal)
+        // Evaluasi Penamaan Status Sensor
         let soilTxt = 'Ideal'; if(data.soil < config.soilMin) { soilTxt = 'Kering'; } else if(data.soil > config.soilMax) { soilTxt = 'Basah'; }
         let tempTxt = 'Stable'; if(data.temp > config.tempMax) { tempTxt = 'Overheat'; } else if(data.temp < config.tempMin) { tempTxt = 'Cold'; }
+        let humTxt = 'Optimal'; if(data.hum < config.humMin) { humTxt = 'Dry'; } else if(data.hum > config.humMax) { humTxt = 'Humid'; }
+        let lightTxt = 'Good'; if(data.light < config.lightMin) { lightTxt = 'Low'; } else if(data.light > config.lightMax) { lightTxt = 'High'; }
 
+        // Update Komponen Indikator Status & Titik Dot Berkedip
         updateCardStatus('Soil', data.soil, (data.soil < config.soilMin || data.soil > config.soilMax), soilTxt, 'bg-blue-500', 'bg-red-500');
-        updateCardStatus('Temp', data.temp, (data.temp > config.tempMax || data.temp < config.tempMin), tempTxt, 'text-green-600', 'text-red-500');
+        updateCardStatus('Temp', data.temp, (data.temp > config.tempMax || data.temp < config.tempMin), tempTxt, 'bg-green-600', 'bg-red-500');
+        updateCardStatus('Hum', data.hum, (data.hum < config.humMin || data.hum > config.humMax), humTxt, 'bg-emerald-600', 'bg-red-500');
+        updateCardStatus('Light', data.light, (data.light < config.lightMin || data.light > config.lightMax), lightTxt, 'bg-yellow-500', 'bg-red-500');
         
+        // Animasi Termometer Bar Suhu
         const barTemp = document.getElementById('barTempVisual');
-        if (data.temp > config.tempMax || data.temp < config.tempMin) {
-            barTemp.className = "w-1 h-8 rounded-full bg-red-500 animate-pulse opacity-100";
-        } else {
-            barTemp.className = "w-1 h-8 rounded-full bg-gray-200 opacity-30";
+        if (barTemp) {
+            if (data.temp > config.tempMax || data.temp < config.tempMin) {
+                barTemp.className = "w-1 h-8 rounded-full bg-red-500 animate-pulse opacity-100";
+            } else {
+                barTemp.className = "w-1 h-8 rounded-full bg-gray-200 opacity-30";
+            }
         }
 
+        // Panggil Render Komponen Notifikasi Alert & Sinkronisasi Mode UI
         renderNotificationAlerts(data);
         updateModeUI(data.mode);
 
+        // Update Siklus Aktuator
         updateActuatorUI('Pump', data.actuators.pump === 'on', '#34d399', '#A16207', 'bg-green-100 text-green-700 ring-2 ring-green-400/20', 'animate-bounce', 'water_drop', 'SIRAM SEKARANG', 'MATIKAN POMPA');
         updateActuatorUI('Fan',  data.actuators.fan === 'on',  '#60a5fa', '#e2e8f0', 'bg-blue-100 text-blue-700 ring-2 ring-blue-400/20', 'animate-spin-slow', 'mode_fan', 'NYALAKAN KIPAS', 'MATIKAN KIPAS');
         updateActuatorUI('Lamp', data.actuators.lamp === 'on', '#facc15', '#e2e8f0', 'bg-yellow-100 text-yellow-700 ring-2 ring-yellow-400/20', 'animate-pulse', 'lightbulb', 'NYALAKAN LAMPU', 'MATIKAN LAMPU');
@@ -444,16 +466,48 @@ function updateActuatorUI(name, isOn, svgOnColor, svgOffColor, badgeOnClass, ani
     }
 }
 
+// REALTIME ALERT ENGINE (TANAH, SUHU, KELEMBAPAN UDARA, CAHAYA)
 function renderNotificationAlerts(data) {
     const container = document.getElementById('alertContainer');
     if (!container) return;
     let html = '';
+
+    // 1. Soil Moisture Alert
     if (data.soil > 0 && (data.soil < config.soilMin || data.soil > config.soilMax)) {
-        html += `<div class="bg-red-50 border border-red-100 rounded-3xl p-5 flex items-start gap-4 shadow-sm animate-pulse"><div class="w-12 h-12 rounded-2xl bg-red-100 text-red-500 flex items-center justify-center flex-shrink-0"><span class="material-symbols-rounded">water_drop</span></div><div class="flex-1"><h4 class="font-bold text-red-600 text-sm uppercase">Soil Moisture Warning</h4><p class="text-sm text-red-500 mt-1">${data.soil < config.soilMin ? 'Kelembapan tanah terlalu rendah (Butuh Penyiraman)' : 'Kelembapan tanah terlalu tinggi'} (${data.soil}%)</p></div></div>`;
+        html += `<div class="bg-red-50 border border-red-100 rounded-3xl p-5 flex items-start gap-4 shadow-sm animate-pulse">
+            <div class="w-12 h-12 rounded-2xl bg-red-100 text-red-500 flex items-center justify-center flex-shrink-0"><span class="material-symbols-rounded">water_drop</span></div>
+            <div class="flex-1"><h4 class="font-bold text-red-600 text-sm uppercase">Soil Moisture Warning</h4>
+            <p class="text-sm text-red-500 mt-1">${data.soil < config.soilMin ? 'Kelembapan tanah terlalu rendah (Butuh Penyiraman)' : 'Kelembapan tanah terlalu tinggi'} (${data.soil}%)</p></div>
+        </div>`;
     }
+
+    // 2. Temperature Alert
     if (data.temp > 0 && (data.temp < config.tempMin || data.temp > config.tempMax)) {
-        html += `<div class="bg-orange-50 border border-orange-100 rounded-3xl p-5 flex items-start gap-4 shadow-sm"><div class="w-12 h-12 rounded-2xl bg-orange-100 text-orange-500 flex items-center justify-center flex-shrink-0"><span class="material-symbols-rounded">device_thermostat</span></div><div class="flex-1"><h4 class="font-bold text-orange-600 text-sm uppercase">Temperature Warning</h4><p class="text-sm text-orange-500 mt-1">${data.temp > config.tempMax ? 'Suhu greenhouse terlalu tinggi (Sistem Mengaktifkan Kipas)' : 'Suhu greenhouse terlalu rendah'} (${data.temp}°C)</p></div></div>`;
+        html += `<div class="bg-orange-50 border border-orange-100 rounded-3xl p-5 flex items-start gap-4 shadow-sm">
+            <div class="w-12 h-12 rounded-2xl bg-orange-100 text-orange-500 flex items-center justify-center flex-shrink-0"><span class="material-symbols-rounded">device_thermostat</span></div>
+            <div class="flex-1"><h4 class="font-bold text-orange-600 text-sm uppercase">Temperature Warning</h4>
+            <p class="text-sm text-orange-500 mt-1">${data.temp > config.tempMax ? 'Suhu greenhouse terlalu tinggi (Sistem Mengaktifkan Kipas)' : 'Suhu greenhouse terlalu rendah'} (${data.temp}°C)</p></div>
+        </div>`;
     }
+
+    // 3. Air Humidity Alert (TAMBAHAN)
+    if (data.hum > 0 && (data.hum < config.humMin || data.hum > config.humMax)) {
+        html += `<div class="bg-emerald-50 border border-emerald-100 rounded-3xl p-5 flex items-start gap-4 shadow-sm">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-500 flex items-center justify-center flex-shrink-0"><span class="material-symbols-rounded">air</span></div>
+            <div class="flex-1"><h4 class="font-bold text-emerald-600 text-sm uppercase">Air Humidity Warning</h4>
+            <p class="text-sm text-emerald-500 mt-1">${data.hum < config.humMin ? 'Kelembapan udara terlalu kering (Udara Gersang)' : 'Kelembapan udara terlalu lembab/basah'} (${data.hum}%)</p></div>
+        </div>`;
+    }
+
+    // 4. Light Intensity Alert (TAMBAHAN)
+    if (data.light > 0 && (data.light < config.lightMin || data.light > config.lightMax)) {
+        html += `<div class="bg-yellow-50 border border-yellow-100 rounded-3xl p-5 flex items-start gap-4 shadow-sm">
+            <div class="w-12 h-12 rounded-2xl bg-yellow-100 text-yellow-600 flex items-center justify-center flex-shrink-0"><span class="material-symbols-rounded">wb_sunny</span></div>
+            <div class="flex-1"><h4 class="font-bold text-yellow-600 text-sm uppercase">Light Intensity Warning</h4>
+            <p class="text-sm text-yellow-500 mt-1">${data.light < config.lightMin ? 'Intensitas cahaya terlalu rendah (Butuh Lampu UV)' : 'Intensitas cahaya terlalu terik'} (${data.light} Lux)</p></div>
+        </div>`;
+    }
+
     container.innerHTML = html;
 }
 
@@ -507,7 +561,6 @@ function closeConfirmModal() {
     if(modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
 }
 
-// FIX: Implementasi Fungsi Reset Modal agar dapat dipanggil tanpa melempar Error
 function openResetModal() {
     const modal = document.getElementById('resetModal');
     if(modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
@@ -557,7 +610,6 @@ if (ctx) {
                 data: soilWeekly,
                 backgroundColor: function(context) {
                     const val = context.dataset.data[context.dataIndex];
-                    // FIX: Visual grafik mendeteksi warna merah jika tanah terlalu kering ATAU terlalu basah
                     return (val < soilThresholdMin || val > soilThresholdMax) ? '#f87171' : '#3b82f6';
                 },
                 borderRadius: 12,

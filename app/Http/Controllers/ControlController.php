@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Actuator;
 use App\Models\Setting;
 use App\Models\Log;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class ControlController extends Controller
@@ -85,7 +86,75 @@ class ControlController extends Controller
     }
 
     // ======================================================
-    // TOGGLE ACTUATOR DENGAN AJAX JSON RESPONSE
+    // API ENDPOINT: MENANGANI LOGIKA OTOMATISASI DARI HARDWARE ESP32
+    // ======================================================
+    public function receiveSensorData(Request $request)
+    {
+        // Ambil data greenhouse aktif
+        $greenhouse = $this->greenhouse();
+        if (!$greenhouse) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Greenhouse aktif tidak ditemukan'
+            ], 404);
+        }
+
+        // Request input data sensor dari ESP32
+        $soilInput  = $request->input('soil');
+        $tempInput  = $request->input('temp');
+        $lightInput = $request->input('light');
+        $humInput   = $request->input('hum'); // Opsional jika ingin digunakan nanti
+
+        $setting = $this->setting($greenhouse->id);
+
+        // Eksekusi Logika Otomatisasi hanya jika Mode Sistem = 'Otomatis'
+        if ($setting->system_mode === 'Otomatis') {
+            
+            // 1. Logika Otomatisasi Pompa Air (Berdasarkan Kelembapan Tanah)
+            $pump = $this->actuator($greenhouse->id, 'pump');
+            if ($soilInput < $setting->soil_moisture_min && $pump->status !== 'on') {
+                $pump->update(['status' => 'on', 'mode' => 'auto']);
+                $this->log('SYSTEM AUTOMATION', 'Pompa dinyalakan otomatis: Kelembapan tanah ' . $soilInput . '% kurang dari batas min (' . $setting->soil_moisture_min . '%)');
+            } elseif ($soilInput >= $setting->soil_moisture_max && $pump->status !== 'off') {
+                $pump->update(['status' => 'off', 'mode' => 'auto']);
+                $this->log('SYSTEM AUTOMATION', 'Pompa dimatikan otomatis: Kelembapan tanah ' . $soilInput . '% sudah mencapai batas max (' . $setting->soil_moisture_max . '%)');
+            }
+
+            // 2. Logika Otomatisasi Kipas (Berdasarkan Suhu Udara)
+            $fan = $this->actuator($greenhouse->id, 'fan');
+            if ($tempInput > $setting->temperature_max && $fan->status !== 'on') {
+                $fan->update(['status' => 'on', 'mode' => 'auto']);
+                $this->log('SYSTEM AUTOMATION', 'Kipas dinyalakan otomatis: Suhu udara ' . $tempInput . '°C melebihi batas max (' . $setting->temperature_max . '°C)');
+            } elseif ($tempInput <= $setting->temperature_min && $fan->status !== 'off') {
+                $fan->update(['status' => 'off', 'mode' => 'auto']);
+                $this->log('SYSTEM AUTOMATION', 'Kipas dimatikan otomatis: Suhu udara ' . $tempInput . '°C sudah turun ke batas min (' . $setting->temperature_min . '°C)');
+            }
+
+            // 3. Logika Otomatisasi Lampu UV (Berdasarkan Intensitas Cahaya / LDR)
+            $lamp = $this->actuator($greenhouse->id, 'lamp');
+            if ($lightInput < $setting->light_min && $lamp->status !== 'on') {
+                $lamp->update(['status' => 'on', 'mode' => 'auto']);
+                $this->log('SYSTEM AUTOMATION', 'Lampu UV dinyalakan otomatis: Intensitas cahaya ' . $lightInput . ' Lux kurang dari batas min (' . $setting->light_min . ' Lux)');
+            } elseif ($lightInput >= $setting->light_max && $lamp->status !== 'off') {
+                $lamp->update(['status' => 'off', 'mode' => 'auto']);
+                $this->log('SYSTEM AUTOMATION', 'Lampu UV dimatikan otomatis: Intensitas cahaya ' . $lightInput . ' Lux sudah terpenuhi batas max (' . $setting->light_max . ' Lux)');
+            }
+        }
+
+        // Return status aktuator final (baik dalam mode manual maupun otomatis) agar dibaca oleh ESP32
+        return response()->json([
+            'success'     => true,
+            'system_mode' => $setting->system_mode,
+            'actuators'   => [
+                'pump' => $this->actuator($greenhouse->id, 'pump')->status,
+                'fan'  => $this->actuator($greenhouse->id, 'fan')->status,
+                'lamp' => $this->actuator($greenhouse->id, 'lamp')->status,
+            ]
+        ]);
+    }
+
+    // ======================================================
+    // TOGGLE ACTUATOR DENGAN AJAX JSON RESPONSE (UNTUK WEB MANUAL)
     // ======================================================
     private function toggle($type)
     {
@@ -140,7 +209,7 @@ class ControlController extends Controller
     }
 
     // ======================================================
-    // PERBAIKAN SINKRONISASI: CHANGE SYSTEM MODE DENGAN AJAX JSON RESPONSE
+    // CHANGE SYSTEM MODE DENGAN AJAX JSON RESPONSE
     // ======================================================
     public function changeMode($mode)
     {
@@ -167,11 +236,7 @@ class ControlController extends Controller
         $types = ['pump', 'fan', 'lamp'];
 
         foreach ($types as $type) {
-            $actuator = $this->actuator($greenhouse->id, $type);
-            
-            // PERBAIKAN: Biarkan 'status' tetap mempertahankan kondisi terakhir dari alat (tidak dipaksa 'off')
-            // untuk mencegah tabrakan data (data override) dari request post sensor ESP32
-            $actuator->update([
+            $this->actuator($greenhouse->id, $type)->update([
                 'mode' => $mode === 'Manual' ? 'manual' : 'auto'
             ]);
         }
@@ -185,41 +250,6 @@ class ControlController extends Controller
             'success' => true,
             'message' => 'Mode berhasil diubah ke ' . strtoupper($mode),
             'mode' => $mode
-        ]);
-    }
-
-    // ======================================================
-    // RESET NODE DENGAN AJAX JSON RESPONSE
-    // ======================================================
-    public function resetNode()
-    {
-        $greenhouse = $this->greenhouse();
-
-        if (!$greenhouse) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Greenhouse aktif tidak ditemukan'
-            ], 404);
-        }
-
-        Actuator::where('greenhouse_id', $greenhouse->id)->update([
-            'status' => 'off',
-            'mode' => 'auto'
-        ]);
-
-        $setting = $this->setting($greenhouse->id);
-        $setting->update([
-            'system_mode' => 'Otomatis'
-        ]);
-
-        $this->log(
-            'RESET NODE',
-            'Node greenhouse berhasil direset kembali ke default sistem'
-        );
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Node greenhouse berhasil direset ke mode otomatis awal'
         ]);
     }
 

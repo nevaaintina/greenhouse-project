@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\SensorApiController;
 use App\Http\Controllers\Api\HeartbeatApiController;
 use App\Http\Controllers\Api\ControlApiController;
 
+
 Route::post(
     '/sensor-data',
     [SensorApiController::class, 'store']
@@ -19,4 +20,10 @@ Route::post(
 Route::get(
     '/control/{greenhouse}',
     [ControlApiController::class, 'status']
+);
+
+
+Route::post(
+    '/greenhouse/{greenhouseId}/sensor-stream',
+    [ControlApiController::class, 'receiveSensorData']
 );
