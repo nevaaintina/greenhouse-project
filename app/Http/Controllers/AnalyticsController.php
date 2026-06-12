@@ -135,8 +135,7 @@ class AnalyticsController extends Controller
                 return collect();
             }
 
-            // PERBAIKAN UTAMA: Tambahkan filter ->where('value', '>', 0) 
-            // agar data rusak/eror bernilai 0 diabaikan oleh web dashboard & PDF report
+            // Saring awal dari query database untuk data di atas 0
             $query = SensorData::where('sensor_id', $sensors[$type])
                 ->where('value', '>', 0);
 
@@ -155,7 +154,7 @@ class AnalyticsController extends Controller
                 ->reverse() 
                 ->values();
 
-            // MENGIRIM STRING WAKTU STANDAR ISO AGAR DATA DETIK RIIL TERBAWA KE JAVASCRIPT ENGINE
+            // Mengirim string waktu standar ISO
             return $data->groupBy(function ($d) {
                 return Carbon::parse($d->recorded_at)->toIso8601String();
             });
@@ -186,9 +185,13 @@ class AnalyticsController extends Controller
         // ======================================================
         $normalize = function ($grouped, $allTimes) {
             return $allTimes->map(function ($time) use ($grouped) {
-                return isset($grouped[$time])
-                    ? round($grouped[$time]->avg('value'), 1)
-                    : null;
+                if (isset($grouped[$time])) {
+                    $average = round($grouped[$time]->avg('value'), 1);
+                    
+                    // Jika rata-rata bernilai 0 atau kurang, paksa null agar tidak lolos validasi tabel
+                    return $average > 0 ? $average : null;
+                }
+                return null;
             });
         };
 
@@ -208,15 +211,52 @@ class AnalyticsController extends Controller
         }
 
         // ======================================================
+        // SINKRONISASI DATA: JALANKAN NORMALISASI AWAL
+        // ======================================================
+        $finalTemp  = $normalize($tempData, $allTimes);
+        $finalSoil  = $normalize($soilData, $allTimes);
+        $finalHum   = $normalize($humData, $allTimes);
+        $finalLight = $normalize($lightData, $allTimes);
+
+        // Siapkan penampung data bersih final
+        $filteredLabels = collect();
+        $filteredTemp   = collect();
+        $filteredSoil   = collect();
+        $filteredHum    = collect();
+        $filteredLight  = collect();
+
+        // ======================================================
+        // STRICT BAR FILTERING: ELIMINASI DATA COMPONENT SENSOR BERKADAR 0 / NULL
+        // ======================================================
+        foreach ($allTimes as $index => $time) {
+            // Jika salah satu komponen sensor bernilai null (atau 0), buang seluruh baris stempel waktu ini
+            if (
+                $finalTemp[$index]  === null || 
+                $finalSoil[$index]  === null || 
+                $finalHum[$index]   === null || 
+                $finalLight[$index] === null
+            ) {
+                continue; // Skip dan jangan masukkan baris cacat ini ke dalam visual/PDF
+            }
+
+            // Masukkan hanya data yang keempat sensornya terisi nilai valid > 0
+            $filteredLabels->push($time);
+            $filteredTemp->push($finalTemp[$index]);
+            $filteredSoil->push($finalSoil[$index]);
+            $filteredHum->push($finalHum[$index]);
+            $filteredLight->push($finalLight[$index]);
+        }
+
+        // ======================================================
         // RETURN CONTEXT DICTIONARY COMPONENT
         // ======================================================
         return [
             'greenhouse'   => $greenhouse,
-            'labels'       => $allTimes,
-            'temp'         => $normalize($tempData, $allTimes),
-            'soil'         => $normalize($soilData, $allTimes),
-            'hum'          => $normalize($humData, $allTimes),
-            'light'        => $normalize($lightData, $allTimes),
+            'labels'       => $filteredLabels,
+            'temp'         => $filteredTemp,
+            'soil'         => $filteredSoil,
+            'hum'          => $filteredHum,
+            'light'        => $filteredLight,
             'filterInfo'   => $filterInfo,
             'startDate'    => $startDate,
             'endDate'      => $endDate
