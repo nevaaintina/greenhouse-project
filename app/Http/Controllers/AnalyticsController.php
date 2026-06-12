@@ -135,7 +135,10 @@ class AnalyticsController extends Controller
                 return collect();
             }
 
-            $query = SensorData::where('sensor_id', $sensors[$type]);
+            // PERBAIKAN UTAMA: Tambahkan filter ->where('value', '>', 0) 
+            // agar data rusak/eror bernilai 0 diabaikan oleh web dashboard & PDF report
+            $query = SensorData::where('sensor_id', $sensors[$type])
+                ->where('value', '>', 0);
 
             if ($startDate) {
                 $query->where('recorded_at', '>=', Carbon::parse($startDate)->startOfDay());
